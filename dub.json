@@ -1,0 +1,15 @@
+{
+	"name": "dvulkanbase",
+	"targetType": "executable",
+	"description": "Vulkan boilerplate",
+	"authors": ["Timo Wiren"],
+	"homepage": "http://twiren.kapsi.fi",
+	"license": "MIT",
+	"dependencies": {
+		"derelict-sdl2": ">=2.0.0",
+		 "erupted": "~>1.4.9"
+  },
+  "subConfigurations": {
+		"erupted": "with-derelict-loader"
+	}
+}

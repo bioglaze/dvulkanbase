@@ -27,7 +27,7 @@ void enforceVk( VkResult res )
 
 class GfxDeviceVulkan
 {
-    this( int width, int height )
+    this( int width, int height, void* windowHandle )
     {
         DerelictErupted.load();
         VkApplicationInfo appinfo;
@@ -79,20 +79,18 @@ class GfxDeviceVulkan
         VkDebugReportCallbackEXT callback;
         enforceVk( vkCreateDebugReportCallbackEXT( instance, &debugcallbackCreateInfo, null, &callback ) );
 
-        version(windows)
+        //version(windows)
         {
-            auto surfaceInfo = VkWin32SurfaceCreateInfoKHR(
-                                                          VkStructureType.VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
-                                                          null,
-                                                          0,
-                                                          sdlWindowInfo.info.win.window,
-                                                          sdlWindowInfo.info.win.window
-                                                        );
-            enforceVk( vkCreateWin32SurfaceKHR( instance, &surfaceInfo, null, &surface ) );
+            VkWin32SurfaceCreateInfoKHR surfaceCreateInfo;
+            surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+            surfaceCreateInfo.hinstance = 0;
+            surfaceCreateInfo.hwnd = windowHandle;
+            enforceVk( vkCreateWin32SurfaceKHR( instance, &surfaceCreateInfo, null, &surface ) );
         }
 
         createDevice( width, height );
         createDepthStencil( width, height );
+        createSemaphores();
 
         drawCmdBuffers = new VkCommandBuffer[ swapChainBuffers.length ];
 
@@ -110,6 +108,93 @@ class GfxDeviceVulkan
         enforceVk( vkAllocateCommandBuffers( device, &commandBufferAllocateInfo, &prePresentCmdBuffer ) );
     }
 
+    void submitPostPresentBarrier()
+    {
+        VkCommandBufferBeginInfo cmdBufInfo;
+        cmdBufInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+        enforceVk( vkBeginCommandBuffer( postPresentCmdBuffer, &cmdBufInfo ) );
+
+        VkImageMemoryBarrier postPresentBarrier;
+        postPresentBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        postPresentBarrier.pNext = null;
+        postPresentBarrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+        postPresentBarrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        postPresentBarrier.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        postPresentBarrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        postPresentBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        postPresentBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        postPresentBarrier.subresourceRange = VkImageSubresourceRange( VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 );
+        postPresentBarrier.image = swapChainBuffers[ currentBuffer ].image;
+
+        vkCmdPipelineBarrier(
+                             postPresentCmdBuffer,
+                             VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                             VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                             0,
+                             0, null,
+                             0, null,
+                             1, &postPresentBarrier );
+
+        enforceVk( vkEndCommandBuffer( postPresentCmdBuffer ) );
+
+        VkSubmitInfo submitPostInfo;
+        submitPostInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitPostInfo.commandBufferCount = 1;
+        submitPostInfo.pCommandBuffers = &postPresentCmdBuffer;
+
+        enforceVk( vkQueueSubmit( graphicsQueue, 1, &submitPostInfo, VK_NULL_HANDLE ) );
+    }
+
+    void submitPrePresentBarrier()
+    {
+        VkCommandBufferBeginInfo cmdBufInfo;
+        cmdBufInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+        enforceVk( vkBeginCommandBuffer( prePresentCmdBuffer, &cmdBufInfo ) );
+
+        VkImageMemoryBarrier prePresentBarrier;
+        prePresentBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        prePresentBarrier.pNext = null;
+        prePresentBarrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        prePresentBarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+        prePresentBarrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        prePresentBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        prePresentBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        prePresentBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        prePresentBarrier.subresourceRange = VkImageSubresourceRange( VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 );
+        prePresentBarrier.image = swapChainBuffers[ currentBuffer ].image;
+
+        vkCmdPipelineBarrier(
+                             prePresentCmdBuffer,
+                             VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                             VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                             0,
+                             0, null,
+                             0, null,
+                             1, &prePresentBarrier );
+
+        enforceVk( vkEndCommandBuffer( prePresentCmdBuffer ) );
+
+        VkSubmitInfo submitInfo;
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &prePresentCmdBuffer;
+
+        enforceVk( vkQueueSubmit( graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE ) );
+    }
+
+    void beginFrame()
+    {
+        enforceVk( vkAcquireNextImageKHR( device, swapChain, ulong.max, presentCompleteSemaphore, null, &currentBuffer ) );
+        submitPostPresentBarrier();
+    }
+
+    void endFrame()
+    {
+
+    }
+  
     private void createDevice( int width, int height )
     {
         uint32_t gpuCount;
@@ -181,6 +266,7 @@ class GfxDeviceVulkan
         enforceVk( vkCreateDevice( physicalDevice, &deviceCreateInfo, null, &device ) );
 
         vkGetPhysicalDeviceMemoryProperties( physicalDevice, &deviceMemoryProperties );
+        loadDeviceLevelFunctions( device );
         vkGetDeviceQueue( device, graphicsQueueIndex, 0, &graphicsQueue );
 
         const VkFormat[] depthFormats = [ VK_FORMAT_D24_UNORM_S8_UINT, VK_FORMAT_D16_UNORM_S8_UINT, VK_FORMAT_D16_UNORM ];
@@ -312,7 +398,7 @@ class GfxDeviceVulkan
 
             swapChainBuffers[ i ].image = swapChainImages[ i ];
 
-            SetImageLayout(
+            setImageLayout(
                            setupCmdBuffer,
                            swapChainBuffers[ i ].image,
                            VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
@@ -324,7 +410,7 @@ class GfxDeviceVulkan
         }
     }
 
-    void SetImageLayout( VkCommandBuffer cmdbuffer, VkImage image, VkImageAspectFlags aspectMask, VkImageLayout oldImageLayout,
+    void setImageLayout( VkCommandBuffer cmdbuffer, VkImage image, VkImageAspectFlags aspectMask, VkImageLayout oldImageLayout,
         VkImageLayout newImageLayout, uint layerCount, uint mipLevel, uint mipLevelCount )
     {
         VkImageMemoryBarrier imageMemoryBarrier;
@@ -484,19 +570,19 @@ class GfxDeviceVulkan
         VkMemoryRequirements memReqs;
         vkGetImageMemoryRequirements( device, depthStencil.image, &memReqs );
         mem_alloc.allocationSize = memReqs.size;
-        GetMemoryType( memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &mem_alloc.memoryTypeIndex );
+        getMemoryType( memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &mem_alloc.memoryTypeIndex );
         enforceVk( vkAllocateMemory( device, &mem_alloc, null, &depthStencil.mem ) );
 
         enforceVk( vkBindImageMemory( device, depthStencil.image, depthStencil.mem, 0 ) );
 
-        SetImageLayout( setupCmdBuffer, depthStencil.image, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT,
+        setImageLayout( setupCmdBuffer, depthStencil.image, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT,
                         VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, 1, 0, 1 );
 
         depthStencilView.image = depthStencil.image;
         enforceVk( vkCreateImageView( device, &depthStencilView, null, &depthStencil.view ) );
     }
 
-    void GetMemoryType( uint32_t typeBits, VkFlags properties, uint32_t* typeIndex )
+    void getMemoryType( uint32_t typeBits, VkFlags properties, uint32_t* typeIndex )
     {
         for (uint32_t i = 0; i < 32; ++i)
         {
@@ -515,6 +601,21 @@ class GfxDeviceVulkan
         assert( false, "could not get memory type" );
     }
 
+    void createSemaphores()
+    {
+        VkSemaphoreCreateInfo presentCompleteSemaphoreCreateInfo;
+        presentCompleteSemaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+        presentCompleteSemaphoreCreateInfo.pNext = null;
+
+        enforceVk( vkCreateSemaphore( device, &presentCompleteSemaphoreCreateInfo, null, &presentCompleteSemaphore ) );
+
+        VkSemaphoreCreateInfo renderCompleteSemaphoreCreateInfo;
+        renderCompleteSemaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+        renderCompleteSemaphoreCreateInfo.pNext = null;
+
+        enforceVk( vkCreateSemaphore( device, &renderCompleteSemaphoreCreateInfo, null, &renderCompleteSemaphore ) );
+    }
+
     VkSurfaceKHR surface;
     VkDevice device;
     VkInstance instance;
@@ -529,7 +630,10 @@ class GfxDeviceVulkan
     VkCommandBuffer prePresentCmdBuffer;
     VkCommandBuffer postPresentCmdBuffer;
     VkCommandPool cmdPool;
+    VkSemaphore presentCompleteSemaphore;
+    VkSemaphore renderCompleteSemaphore;
     int queueNodeIndex;
+    uint currentBuffer;
   
     struct SwapChainBuffer
     {

@@ -20,8 +20,9 @@ void main()
 
     DerelictSDL2.load();
     auto sdlWindow = SDL_CreateWindow( "vulkan basecode", 0, 0, 800, 600, 0 );
-
-    GfxDeviceVulkan gfxdevicevulkan = new GfxDeviceVulkan( 800, 600 );
+    SDL_SysWMinfo info;
+    auto success = SDL_GetWindowWMInfo( sdlWindow, &info );
+    GfxDeviceVulkan gfxdevice = new GfxDeviceVulkan( 800, 600, info.info.win.window );
 
     bool quit = false;
 
@@ -36,5 +37,8 @@ void main()
                 quit = true;
             }
         }
+
+        gfxdevice.beginFrame();
+        gfxdevice.endFrame();
     }
 }

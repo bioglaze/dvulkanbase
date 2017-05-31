@@ -83,7 +83,7 @@ class GfxDeviceVulkan
         {
             VkWin32SurfaceCreateInfoKHR surfaceCreateInfo;
             surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-            surfaceCreateInfo.hinstance = 0;
+            surfaceCreateInfo.hinstance = windowHandle;
             surfaceCreateInfo.hwnd = windowHandle;
             enforceVk( vkCreateWin32SurfaceKHR( instance, &surfaceCreateInfo, null, &surface ) );
         }
@@ -91,7 +91,8 @@ class GfxDeviceVulkan
         createDevice( width, height );
         createDepthStencil( width, height );
         createSemaphores();
-
+        createRenderPass();
+        
         drawCmdBuffers = new VkCommandBuffer[ swapChainBuffers.length ];
 
         VkCommandBufferAllocateInfo commandBufferAllocateInfo;
@@ -106,6 +107,83 @@ class GfxDeviceVulkan
         
         enforceVk( vkAllocateCommandBuffers( device, &commandBufferAllocateInfo, &postPresentCmdBuffer ) );
         enforceVk( vkAllocateCommandBuffers( device, &commandBufferAllocateInfo, &prePresentCmdBuffer ) );
+
+        VkImageView[ 2 ] attachments;
+
+        attachments[ 1 ] = depthStencil.view;
+
+        VkFramebufferCreateInfo frameBufferCreateInfo;
+        frameBufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        frameBufferCreateInfo.pNext = null;
+        frameBufferCreateInfo.renderPass = renderPass;
+        frameBufferCreateInfo.attachmentCount = 2;
+        frameBufferCreateInfo.pAttachments = attachments.ptr;
+        frameBufferCreateInfo.width = cast(uint32_t) width;
+        frameBufferCreateInfo.height = cast(uint32_t) height;
+        frameBufferCreateInfo.layers = 1;
+
+        for (uint32_t bufferIndex = 0; bufferIndex < 2; ++bufferIndex)
+        {
+            attachments[ 0 ] = swapChainBuffers[ bufferIndex ].view;
+            enforceVk( vkCreateFramebuffer( device, &frameBufferCreateInfo, null, &frameBuffers[ bufferIndex ] ) );
+        }
+
+    }
+
+    void createRenderPass()
+    {
+        VkAttachmentDescription[ 2 ] attachments;
+        attachments[ 0 ].format = colorFormat;
+        attachments[ 0 ].samples = VK_SAMPLE_COUNT_1_BIT;
+        attachments[ 0 ].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        attachments[ 0 ].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        attachments[ 0 ].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        attachments[ 0 ].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        attachments[ 0 ].initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        attachments[ 0 ].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        attachments[ 0 ].flags = 0;
+
+        attachments[ 1 ].format = depthFormat;
+        attachments[ 1 ].samples = VK_SAMPLE_COUNT_1_BIT;
+        attachments[ 1 ].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        attachments[ 1 ].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        attachments[ 1 ].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        attachments[ 1 ].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        attachments[ 1 ].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        attachments[ 1 ].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        attachments[ 1 ].flags = 0;
+
+        VkAttachmentReference colorReference;
+        colorReference.attachment = 0;
+        colorReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+        VkAttachmentReference depthReference;
+        depthReference.attachment = 1;
+        depthReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        VkSubpassDescription subpass;
+        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        subpass.flags = 0;
+        subpass.inputAttachmentCount = 0;
+        subpass.pInputAttachments = null;
+        subpass.colorAttachmentCount = 1;
+        subpass.pColorAttachments = &colorReference;
+        subpass.pResolveAttachments = null;
+        subpass.pDepthStencilAttachment = &depthReference;
+        subpass.preserveAttachmentCount = 0;
+        subpass.pPreserveAttachments = null;
+
+        VkRenderPassCreateInfo renderPassInfo;
+        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        renderPassInfo.pNext = null;
+        renderPassInfo.attachmentCount = 2;
+        renderPassInfo.pAttachments = attachments.ptr;
+        renderPassInfo.subpassCount = 1;
+        renderPassInfo.pSubpasses = &subpass;
+        renderPassInfo.dependencyCount = 0;
+        renderPassInfo.pDependencies = null;
+
+        enforceVk( vkCreateRenderPass( device, &renderPassInfo, null, &renderPass ) );
     }
 
     void submitPostPresentBarrier()
@@ -184,17 +262,70 @@ class GfxDeviceVulkan
         enforceVk( vkQueueSubmit( graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE ) );
     }
 
-    void beginFrame()
+    void beginFrame( int width, int height )
     {
         enforceVk( vkAcquireNextImageKHR( device, swapChain, ulong.max, presentCompleteSemaphore, null, &currentBuffer ) );
         submitPostPresentBarrier();
+        beginRenderPass( width, height );
     }
 
     void endFrame()
     {
-
+        endRenderPass();
     }
-  
+
+    private void beginRenderPass( int windowWidth, int windowHeight )
+    {
+        enforceVk( vkDeviceWaitIdle( device ) );
+
+        VkCommandBufferBeginInfo cmdBufInfo;
+        cmdBufInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        cmdBufInfo.pNext = null;
+
+        VkClearColorValue clearColor;
+        clearColor.int32 = [ 1, 0, 0, 1 ];
+        VkClearValue[ 2 ] clearValues;
+        clearValues[ 0 ].color = clearColor;
+        //clearValues[ 1 ].depthStencil = { 1.0f, 0 };
+
+        VkRenderPassBeginInfo renderPassBeginInfo;
+        renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        renderPassBeginInfo.pNext = null;
+        renderPassBeginInfo.renderPass = renderPass;
+        renderPassBeginInfo.renderArea.offset.x = 0;
+        renderPassBeginInfo.renderArea.offset.y = 0;
+        renderPassBeginInfo.renderArea.extent.width = windowWidth;
+        renderPassBeginInfo.renderArea.extent.height = windowHeight;
+        renderPassBeginInfo.clearValueCount = 2;
+        renderPassBeginInfo.pClearValues = &clearValues[ 0 ];
+        renderPassBeginInfo.framebuffer = frameBuffers[ currentBuffer ];
+
+        enforceVk( vkBeginCommandBuffer( drawCmdBuffers[ currentBuffer ], &cmdBufInfo ) );
+
+        vkCmdBeginRenderPass( drawCmdBuffers[ currentBuffer ], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE );
+
+        VkViewport viewport;
+        viewport.height = cast(float)windowHeight;
+        viewport.width = cast(float)windowWidth;
+        viewport.minDepth = cast(float) 0.0f;
+        viewport.maxDepth = cast(float) 1.0f;
+        vkCmdSetViewport( drawCmdBuffers[ currentBuffer ], 0, 1, &viewport );
+
+        VkRect2D scissor;
+        scissor.extent.width = windowWidth;
+        scissor.extent.height = windowHeight;
+        scissor.offset.x = 0;
+        scissor.offset.y = 0;
+        vkCmdSetScissor( drawCmdBuffers[ currentBuffer ], 0, 1, &scissor );
+    }
+
+    private void endRenderPass()
+    {
+        vkCmdEndRenderPass( drawCmdBuffers[ currentBuffer ] );
+        enforceVk( vkEndCommandBuffer( drawCmdBuffers[ currentBuffer ] ) );
+        enforceVk( vkDeviceWaitIdle( device ) );
+    }
+
     private void createDevice( int width, int height )
     {
         uint32_t gpuCount;
@@ -224,7 +355,14 @@ class GfxDeviceVulkan
 
         assert( graphicsQueueIndex < queueCount, "Could not find graphics queue" );
         queueNodeIndex = graphicsQueueIndex;
-        
+
+        VkBool32[] supportsPresent = new VkBool32[ queueCount ];
+
+        for (uint32_t i = 0; i < queueCount; ++i)
+        {
+            vkGetPhysicalDeviceSurfaceSupportKHR( physicalDevice, i, surface, &supportsPresent[ i ] );
+        }
+
         float queuePriorities = 0;
         VkDeviceQueueCreateInfo queueCreateInfo;
         queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
@@ -293,8 +431,6 @@ class GfxDeviceVulkan
 
         VkSurfaceFormatKHR[]  surfFormats = new VkSurfaceFormatKHR[ formatCount ];
         enforceVk( vkGetPhysicalDeviceSurfaceFormatsKHR( physicalDevice, surface, &formatCount, surfFormats.ptr ) );
-
-        VkFormat colorFormat;
         
         if (formatCount == 1 && surfFormats[ 0 ].format == VK_FORMAT_UNDEFINED)
         {
@@ -621,6 +757,7 @@ class GfxDeviceVulkan
     VkInstance instance;
     VkPhysicalDevice physicalDevice;
     VkFormat depthFormat;
+    VkFormat colorFormat;
     VkQueue graphicsQueue;
     VkPhysicalDeviceMemoryProperties deviceMemoryProperties;
     VkSwapchainKHR swapChain;
@@ -632,6 +769,8 @@ class GfxDeviceVulkan
     VkCommandPool cmdPool;
     VkSemaphore presentCompleteSemaphore;
     VkSemaphore renderCompleteSemaphore;
+    VkFramebuffer[ 2 ] frameBuffers;
+    VkRenderPass renderPass;
     int queueNodeIndex;
     uint currentBuffer;
   

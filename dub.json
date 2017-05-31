@@ -11,5 +11,6 @@
   },
   "subConfigurations": {
 		"erupted": "with-derelict-loader"
-	}
+	},
+	"versions-windows-x86_64": ["VK_USE_PLATFORM_WIN32_KHR"]
 }

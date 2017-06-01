@@ -12,7 +12,7 @@ extern(System) VkBool32 MyDebugReportCallback(
     void*                       pUserData) nothrow @nogc
 {
     import std.stdio;
-    printf( "ObjectType: %i  \n", objectType );
+    //printf( "ObjectType: %i  \n", objectType );
     printf( pMessage );
     printf( "\n" );
     return VK_FALSE;
@@ -92,6 +92,9 @@ class GfxDeviceVulkan
         createDepthStencil( width, height );
         createSemaphores();
         createRenderPass();
+        flushSetupCommandBuffer();
+        createDescriptorSetLayout();
+        createDescriptorPool();
         
         drawCmdBuffers = new VkCommandBuffer[ swapChainBuffers.length ];
 
@@ -127,7 +130,76 @@ class GfxDeviceVulkan
             attachments[ 0 ] = swapChainBuffers[ bufferIndex ].view;
             enforceVk( vkCreateFramebuffer( device, &frameBufferCreateInfo, null, &frameBuffers[ bufferIndex ] ) );
         }
+    }
 
+    private void createDescriptorSetLayout()
+    {
+        // Binding 0 : Uniform buffer (Vertex shader)
+        VkDescriptorSetLayoutBinding layoutBindingUBO;
+        layoutBindingUBO.binding = 0;
+        layoutBindingUBO.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        layoutBindingUBO.descriptorCount = 1;
+        layoutBindingUBO.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+        layoutBindingUBO.pImmutableSamplers = null;
+
+        // Binding 1 : Sampler (Fragment shader)
+        VkDescriptorSetLayoutBinding layoutBindingSampler;
+        layoutBindingSampler.binding = 1;
+        layoutBindingSampler.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        layoutBindingSampler.descriptorCount = 1;
+        layoutBindingSampler.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        layoutBindingSampler.pImmutableSamplers = null;
+
+        VkDescriptorSetLayoutBinding[ 2 ] bindings = [ layoutBindingUBO, layoutBindingSampler ];
+
+        VkDescriptorSetLayoutCreateInfo descriptorLayout;
+        descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        descriptorLayout.pNext = null;
+        descriptorLayout.bindingCount = 2;
+        descriptorLayout.pBindings = bindings.ptr;
+
+        enforceVk( vkCreateDescriptorSetLayout( device, &descriptorLayout, null, &descriptorSetLayout ) );
+
+        VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo;
+        pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        pipelineLayoutCreateInfo.pNext = null;
+        pipelineLayoutCreateInfo.setLayoutCount = 1;
+        pipelineLayoutCreateInfo.pSetLayouts = &descriptorSetLayout;
+
+        enforceVk( vkCreatePipelineLayout( device, &pipelineLayoutCreateInfo, null, &pipelineLayout ) );
+    }
+
+    void createDescriptorPool()
+    {
+        const int count = 20;
+        VkDescriptorPoolSize[ 2 ] typeCounts;
+        typeCounts[ 0 ].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        typeCounts[ 0 ].descriptorCount = count;
+        typeCounts[ 1 ].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        typeCounts[ 1 ].descriptorCount = count;
+
+        VkDescriptorPoolCreateInfo descriptorPoolInfo;
+        descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        descriptorPoolInfo.pNext = null;
+        descriptorPoolInfo.poolSizeCount = 2;
+        descriptorPoolInfo.pPoolSizes = typeCounts.ptr;
+        descriptorPoolInfo.maxSets = count;
+        descriptorPoolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+
+        enforceVk( vkCreateDescriptorPool( device, &descriptorPoolInfo, null, &descriptorPool ) );
+
+        descriptorSets = new VkDescriptorSet[ count ];
+
+        for (int i = 0; i < descriptorSets.length; ++i)
+        {
+            VkDescriptorSetAllocateInfo allocInfo;
+            allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+            allocInfo.descriptorPool = descriptorPool;
+            allocInfo.descriptorSetCount = 1;
+            allocInfo.pSetLayouts = &descriptorSetLayout;
+
+            enforceVk( vkAllocateDescriptorSets( device, &allocInfo, &descriptorSets[ i ] ) );
+        }
     }
 
     void createRenderPass()
@@ -262,6 +334,27 @@ class GfxDeviceVulkan
         enforceVk( vkQueueSubmit( graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE ) );
     }
 
+    private void flushSetupCommandBuffer()
+    {
+        if (setupCmdBuffer == VK_NULL_HANDLE)
+        {
+            return;
+        }
+
+        enforceVk( vkEndCommandBuffer( setupCmdBuffer ) );
+
+        VkSubmitInfo submitInfo;
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &setupCmdBuffer;
+
+        enforceVk( vkQueueSubmit( graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE ) );
+        enforceVk( vkQueueWaitIdle( graphicsQueue ) );
+
+        vkFreeCommandBuffers( device, cmdPool, 1, &setupCmdBuffer );
+        setupCmdBuffer = VK_NULL_HANDLE;
+    }
+  
     void beginFrame( int width, int height )
     {
         enforceVk( vkAcquireNextImageKHR( device, swapChain, ulong.max, presentCompleteSemaphore, null, &currentBuffer ) );
@@ -272,6 +365,34 @@ class GfxDeviceVulkan
     void endFrame()
     {
         endRenderPass();
+
+        VkPipelineStageFlags pipelineStages = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+
+        VkSubmitInfo submitInfo;
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.pWaitDstStageMask = &pipelineStages;
+        submitInfo.waitSemaphoreCount = 1;
+        submitInfo.pWaitSemaphores = &presentCompleteSemaphore;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &drawCmdBuffers[ currentBuffer ];
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = &renderCompleteSemaphore;
+
+        enforceVk( vkQueueSubmit( graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE ) );
+
+        submitPrePresentBarrier();
+
+        VkPresentInfoKHR presentInfo;
+        presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        presentInfo.pNext = null;
+        presentInfo.swapchainCount = 1;
+        presentInfo.pSwapchains = &swapChain;
+        presentInfo.pImageIndices = &currentBuffer;
+        presentInfo.pWaitSemaphores = &renderCompleteSemaphore;
+        presentInfo.waitSemaphoreCount = 1;
+        enforceVk( vkQueuePresentKHR( graphicsQueue, &presentInfo ) );
+
+        enforceVk( vkQueueWaitIdle( graphicsQueue ) );
     }
 
     private void beginRenderPass( int windowWidth, int windowHeight )
@@ -771,6 +892,10 @@ class GfxDeviceVulkan
     VkSemaphore renderCompleteSemaphore;
     VkFramebuffer[ 2 ] frameBuffers;
     VkRenderPass renderPass;
+    VkDescriptorSetLayout descriptorSetLayout;
+    VkDescriptorSet[] descriptorSets;
+    VkDescriptorPool descriptorPool;
+    VkPipelineLayout pipelineLayout;
     int queueNodeIndex;
     uint currentBuffer;
   

@@ -22,7 +22,13 @@ void main()
     int height = 600;
 
     DerelictSDL2.load();
-    auto sdlWindow = SDL_CreateWindow( "vulkan basecode", 0, 0, width, height, 0 );
+    if (SDL_Init( SDL_INIT_VIDEO ) < 0)
+    {
+        const(char)* message = SDL_GetError();
+        writeln( "Failed to initialize SDL: ", message );
+    }
+
+    auto sdlWindow = SDL_CreateWindow( "vulkan basecode", 0, 0, width, height, SDL_WINDOW_SHOWN );
     SDL_SysWMinfo info;
     auto success = SDL_GetWindowWMInfo( sdlWindow, &info );
     GfxDeviceVulkan gfxdevice = new GfxDeviceVulkan( width, height, info.info.win.window );
@@ -36,6 +42,10 @@ void main()
         while (SDL_PollEvent( &event ))
         {
             if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE)
+            {
+                quit = true;
+            }
+            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_ESCAPE)
             {
                 quit = true;
             }

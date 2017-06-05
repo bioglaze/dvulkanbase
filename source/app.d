@@ -52,6 +52,7 @@ void main()
         }
 
         gfxdevice.beginFrame( width, height );
+        gfxdevice.draw( gfxdevice.vertexBuffer, 0, 2, gfxdevice.shader, BlendMode.Off, DepthFunc.NoneWriteOff, CullMode.Off/*, gfxdevice.quad1Ubo.uboDesc*/ );
         gfxdevice.endFrame();
     }
 }

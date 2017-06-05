@@ -1,8 +1,10 @@
-import erupted;
-import std.stdio;
 import core.stdc.string;
+import erupted;
+import std.conv;
+import std.exception;
+import std.stdio;
 
-extern(System) VkBool32 MyDebugReportCallback(
+extern(System) VkBool32 myDebugReportCallback(
     VkDebugReportFlagsEXT       flags,
     VkDebugReportObjectTypeEXT  objectType,
     uint64_t                    object,
@@ -12,7 +14,6 @@ extern(System) VkBool32 MyDebugReportCallback(
     const (char)*                 pMessage,
     void*                       pUserData) nothrow @nogc
 {
-    import std.stdio;
     //printf( "ObjectType: %i  \n", objectType );
     printf( pMessage );
     printf( "\n" );
@@ -21,9 +22,22 @@ extern(System) VkBool32 MyDebugReportCallback(
 
 void enforceVk( VkResult res )
 {
-    import std.exception;
-    import std.conv;
     enforce( res is VkResult.VK_SUCCESS, res.to!string );
+}
+
+enum BlendMode
+{
+    Off,
+}
+
+enum DepthFunc
+{
+    NoneWriteOff,
+}
+
+enum CullMode
+{
+    Off,
 }
 
 class GfxDeviceVulkan
@@ -73,7 +87,7 @@ class GfxDeviceVulkan
            VkDebugReportFlagBitsEXT.VK_DEBUG_REPORT_ERROR_BIT_EXT |
            VkDebugReportFlagBitsEXT.VK_DEBUG_REPORT_WARNING_BIT_EXT |
            VkDebugReportFlagBitsEXT.VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT,
-           &MyDebugReportCallback,
+           &myDebugReportCallback,
            null
         );
         
@@ -96,6 +110,7 @@ class GfxDeviceVulkan
         flushSetupCommandBuffer();
         createDescriptorSetLayout();
         createDescriptorPool();
+        createUniformBuffer( quadUbo );
         
         drawCmdBuffers = new VkCommandBuffer[ swapChainBuffers.length ];
 
@@ -145,7 +160,7 @@ class GfxDeviceVulkan
 
         vertexBuffer.generate( quadVertices, quadIndices, this );
     
-        shader.load( "unlit_vert.spv", "unlit_frag.spv", device );
+        shader.load( "assets/shader.vert.spv", "assets/shader.frag.spv", device );
     }
 
     private void createDescriptorSetLayout()
@@ -350,6 +365,36 @@ class GfxDeviceVulkan
         enforceVk( vkQueueSubmit( graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE ) );
     }
 
+    private void createUniformBuffer( ref Ubo ubo )
+    {
+        const VkDeviceSize uboSize = 256;// 16 * 4;
+
+        VkBufferCreateInfo bufferInfo;
+        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bufferInfo.size = uboSize;
+        bufferInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+
+        enforceVk( vkCreateBuffer( device, &bufferInfo, null, &ubo.ubo ) );
+
+        VkMemoryRequirements memReqs;
+        vkGetBufferMemoryRequirements( device, ubo.ubo, &memReqs );
+
+        VkMemoryAllocateInfo allocInfo;
+        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        allocInfo.pNext = null;
+        allocInfo.allocationSize = memReqs.size;
+        getMemoryType( memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &allocInfo.memoryTypeIndex );
+        enforceVk( vkAllocateMemory( device, &allocInfo, null, &ubo.memory ) );
+
+        enforceVk( vkBindBufferMemory( device, ubo.ubo, ubo.memory, 0 ) );
+
+        ubo.desc.buffer = ubo.ubo;
+        ubo.desc.offset = 0;
+        ubo.desc.range = uboSize;
+
+        enforceVk( vkMapMemory( device, ubo.memory, 0, uboSize, 0, cast(void **)&ubo.data ) );
+    }
+
     private void flushSetupCommandBuffer()
     {
         if (setupCmdBuffer == VK_NULL_HANDLE)
@@ -376,6 +421,20 @@ class GfxDeviceVulkan
         enforceVk( vkAcquireNextImageKHR( device, swapChain, ulong.max, presentCompleteSemaphore, null, &currentBuffer ) );
         submitPostPresentBarrier();
         beginRenderPass( width, height );
+
+        descriptorSetIndex = (descriptorSetIndex + 1) % cast(int)descriptorSets.length;
+
+        // Binding 0 : Uniform buffer
+        VkWriteDescriptorSet uboSet;
+        uboSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        uboSet.dstSet = descriptorSets[ descriptorSetIndex ];
+        uboSet.descriptorCount = 1;
+        uboSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        uboSet.pBufferInfo = &quadUbo.desc;
+        uboSet.dstBinding = 0;
+
+        VkWriteDescriptorSet[ 1 ] sets = [ uboSet/*, samplerSet*/ ];
+        vkUpdateDescriptorSets( device, 1, sets.ptr, 0, null );
     }
 
     void endFrame()
@@ -945,6 +1004,117 @@ class GfxDeviceVulkan
         assert( buffer != VK_NULL_HANDLE, "buffer is null" );
     }
 
+    private uint64_t getPsoHash( VertexBuffer vb, Shader aShader, BlendMode blendMode, DepthFunc depthFunc, CullMode cullMode )
+    {
+        uint64_t result = cast(uint64_t)&vb;
+        result += cast(uint64_t)&aShader;
+        result += cast(uint64_t)blendMode;
+        result += cast(uint64_t)depthFunc;
+        result += cast(uint64_t)cullMode;
+        return result;
+    }
+  
+    void draw( VertexBuffer vb, int startIndex, int endIndex, Shader aShader, BlendMode blendMode, DepthFunc depthFunc, CullMode cullMode )
+    {
+        uint64_t psoHash = getPsoHash( vb, aShader, blendMode, depthFunc, cullMode );
+
+        if (psoHash !in psoCache)
+        {
+            createPso( vertexBuffer, shader, blendMode, depthFunc, cullMode, psoHash );
+        }
+
+        vkCmdBindDescriptorSets( drawCmdBuffers[ currentBuffer ], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[ descriptorSetIndex ], 0, null );
+        vkCmdBindPipeline( drawCmdBuffers[ currentBuffer ], VK_PIPELINE_BIND_POINT_GRAPHICS, psoCache[ psoHash ] );
+
+        VkDeviceSize[ 1 ] offsets = [ 0 ];
+        vkCmdBindVertexBuffers( drawCmdBuffers[ currentBuffer ], 0, 1, &vb.vertexBuffer, offsets.ptr );
+        vkCmdBindIndexBuffer( drawCmdBuffers[ currentBuffer ], vb.indexBuffer, 0, VK_INDEX_TYPE_UINT16 );
+        vkCmdDrawIndexed( drawCmdBuffers[ currentBuffer ], (endIndex - startIndex) * 3, 1, startIndex * 3, 0, 0 );
+    }
+
+    private void createPso( VertexBuffer vb, Shader shader, BlendMode blendMode, DepthFunc depthFunc, CullMode cullMode, uint64_t psoHash )
+    {
+        VkPipelineInputAssemblyStateCreateInfo inputAssemblyState;
+        inputAssemblyState.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+        inputAssemblyState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+        VkPipelineRasterizationStateCreateInfo rasterizationState;
+        rasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+        rasterizationState.polygonMode = VK_POLYGON_MODE_FILL;
+
+        rasterizationState.cullMode = VK_CULL_MODE_NONE;
+        rasterizationState.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+        rasterizationState.depthClampEnable = VK_FALSE;
+        rasterizationState.depthBiasClamp = 0.0;
+        rasterizationState.rasterizerDiscardEnable = VK_FALSE;
+        rasterizationState.depthBiasEnable = VK_FALSE;
+        rasterizationState.lineWidth = 1;
+
+        VkPipelineColorBlendAttachmentState[ 1 ] blendAttachmentState;
+        blendAttachmentState[ 0 ].colorWriteMask = 0xF;
+        blendAttachmentState[ 0 ].blendEnable = VK_FALSE;
+
+        VkPipelineColorBlendStateCreateInfo colorBlendState;
+        colorBlendState.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+        colorBlendState.attachmentCount = 1;
+        colorBlendState.pAttachments = blendAttachmentState.ptr;
+
+        VkPipelineDynamicStateCreateInfo dynamicState;
+        VkDynamicState[ 2 ] dynamicStateEnables;
+        dynamicStateEnables[ 0 ] = VK_DYNAMIC_STATE_VIEWPORT;
+        dynamicStateEnables[ 1 ] = VK_DYNAMIC_STATE_SCISSOR;
+        dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+        dynamicState.pDynamicStates = &dynamicStateEnables[ 0 ];
+        dynamicState.dynamicStateCount = 2;
+
+        VkPipelineDepthStencilStateCreateInfo depthStencilState;
+        depthStencilState.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+        depthStencilState.depthTestEnable = VK_FALSE;
+        depthStencilState.depthWriteEnable = VK_TRUE;
+        depthStencilState.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+        depthStencilState.depthBoundsTestEnable = VK_FALSE;
+        depthStencilState.back.failOp = VK_STENCIL_OP_KEEP;
+        depthStencilState.back.passOp = VK_STENCIL_OP_KEEP;
+        depthStencilState.back.compareOp = VK_COMPARE_OP_ALWAYS;
+        depthStencilState.stencilTestEnable = VK_FALSE;
+        depthStencilState.front = depthStencilState.back;
+
+        VkPipelineMultisampleStateCreateInfo multisampleState;
+        multisampleState.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+        multisampleState.pSampleMask = null;
+        multisampleState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+        VkPipelineShaderStageCreateInfo[ 2 ] shaderStages;
+
+        shaderStages[ 0 ] = shader.vertexInfo;
+        shaderStages[ 1 ] = shader.fragmentInfo;
+
+        VkPipelineViewportStateCreateInfo viewportState;
+        viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+        viewportState.viewportCount = 1;
+        viewportState.scissorCount = 1;
+
+        VkGraphicsPipelineCreateInfo pipelineCreateInfo;
+
+        pipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+        pipelineCreateInfo.layout = pipelineLayout;
+        pipelineCreateInfo.renderPass = renderPass;
+        pipelineCreateInfo.pVertexInputState = &vb.inputState;
+        pipelineCreateInfo.pInputAssemblyState = &inputAssemblyState;
+        pipelineCreateInfo.pRasterizationState = &rasterizationState;
+        pipelineCreateInfo.pColorBlendState = &colorBlendState;
+        pipelineCreateInfo.pMultisampleState = &multisampleState;
+        pipelineCreateInfo.pViewportState = &viewportState;
+        pipelineCreateInfo.pDepthStencilState = &depthStencilState;
+        pipelineCreateInfo.stageCount = 2;
+        pipelineCreateInfo.pStages = shaderStages.ptr;
+        pipelineCreateInfo.pDynamicState = &dynamicState;
+
+        VkPipeline pso;
+        enforceVk( vkCreateGraphicsPipelines( device, pipelineCache, 1, &pipelineCreateInfo, null, &pso ) );
+        psoCache[ psoHash ] = pso;
+    }
+  
     struct SwapChainBuffer
     {
         VkImage image;
@@ -988,7 +1158,7 @@ class GfxDeviceVulkan
 
     struct Shader
     {
-      void load( string vertexPath, string fragmentPath, VkDevice device )
+        void load( string vertexPath, string fragmentPath, VkDevice device )
         {
             // Vertex shader
             {
@@ -999,13 +1169,14 @@ class GfxDeviceVulkan
                     assert( false, "Could not open vertex shader file" );
                 }
                 
-                char[] vertexData = new char[ 100 ];
-
+                char[] vertexCode = new char[ file.size ];
+                auto vertexSlice = file.rawRead( vertexCode );
+                
                 VkShaderModuleCreateInfo moduleCreateInfo;
                 moduleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
                 moduleCreateInfo.pNext = null;
-                moduleCreateInfo.codeSize = vertexData.length;
-                moduleCreateInfo.pCode = cast(uint*)vertexData.ptr;
+                moduleCreateInfo.codeSize = vertexSlice.length;
+                moduleCreateInfo.pCode = cast(uint*)vertexCode.ptr;
                 moduleCreateInfo.flags = 0;
 
                 VkShaderModule shaderModule;
@@ -1029,13 +1200,14 @@ class GfxDeviceVulkan
                     assert( false, "Could not open fragment shader file" );
                 }
 
-                char[] fragmentData = new char[ 100 ];
+                char[] fragmentCode = new char[ file.size ];
+                auto fragmentSlice = file.rawRead( fragmentCode );
 
                 VkShaderModuleCreateInfo moduleCreateInfo;
                 moduleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
                 moduleCreateInfo.pNext = null;
-                moduleCreateInfo.codeSize = fragmentData.length;
-                moduleCreateInfo.pCode = cast(uint*)fragmentData.ptr;
+                moduleCreateInfo.codeSize = fragmentSlice.length;
+                moduleCreateInfo.pCode = cast(uint*)fragmentCode.ptr;
                 moduleCreateInfo.flags = 0;
 
                 VkShaderModule shaderModule;
@@ -1053,6 +1225,14 @@ class GfxDeviceVulkan
       
         VkPipelineShaderStageCreateInfo vertexInfo;
         VkPipelineShaderStageCreateInfo fragmentInfo;
+    }
+
+    struct Ubo
+    {
+        VkBuffer ubo;
+        VkDeviceMemory memory;
+        VkDescriptorBufferInfo desc;
+        uint8_t* data;
     }
 
     VkSurfaceKHR surface;
@@ -1082,9 +1262,16 @@ class GfxDeviceVulkan
     uint currentBuffer;  
     SwapChainBuffer[] swapChainBuffers;
     DepthStencil depthStencil;
+
     VertexPTC[] quadVertices;
     Face[] quadIndices;
+    Ubo quadUbo;
     Shader shader;
+
+    VkPipeline[ uint64_t ] psoCache;
+    VkPipelineCache pipelineCache;
+    int descriptorSetIndex;
+  
   
     struct VertexBuffer
     {

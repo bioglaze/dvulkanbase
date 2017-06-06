@@ -42,7 +42,7 @@ enum CullMode
 
 class GfxDeviceVulkan
 {
-    this( int width, int height, void* windowHandle )
+    this( int width, int height, void* windowHandleOrWindow, void* Display )
     {
         DerelictErupted.load();
         VkApplicationInfo appinfo;
@@ -94,13 +94,24 @@ class GfxDeviceVulkan
         VkDebugReportCallbackEXT callback;
         enforceVk( vkCreateDebugReportCallbackEXT( instance, &debugcallbackCreateInfo, null, &callback ) );
 
-        //version(windows)
+        version(Windows)
         {
             VkWin32SurfaceCreateInfoKHR surfaceCreateInfo;
             surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
             surfaceCreateInfo.hinstance = windowHandle;
             surfaceCreateInfo.hwnd = windowHandle;
             enforceVk( vkCreateWin32SurfaceKHR( instance, &surfaceCreateInfo, null, &surface ) );
+        }
+        version(linux)
+        {
+            auto xlibInfo = VkXlibSurfaceCreateInfoKHR(
+              VkStructureType.VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR,
+              null,
+              0,
+              sdlWindowInfo.info.x11.display,
+              sdlWindowInfo.info.x11.window
+            );
+            enforceVk( vkCreateXlibSurfaceKHR( instance, &xlibInfo, null, &surface ) );
         }
 
         createDevice( width, height );

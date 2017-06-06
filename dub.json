@@ -1,16 +1,31 @@
 {
-	"name": "dvulkanbase",
-	"targetType": "executable",
-	"description": "Vulkan boilerplate",
-	"authors": ["Timo Wiren"],
-	"homepage": "http://twiren.kapsi.fi",
-	"license": "MIT",
-	"dependencies": {
-		"derelict-sdl2": ">=2.0.0",
-		 "erupted": "~>1.4.9"
-  },
-  "subConfigurations": {
-		"erupted": "with-derelict-loader"
-	},
-	"versions-windows-x86_64": ["VK_USE_PLATFORM_WIN32_KHR"]
+    "name": "dvulkanbase",
+    "targetType": "executable",
+    "description": "Vulkan boilerplate",
+    "authors": ["Timo Wiren"],
+    "homepage": "http://twiren.kapsi.fi",
+    "license": "MIT",
+    "configurations": [
+        {
+            "name": "linux",
+            "platforms": ["linux"],
+            "versions": ["VK_USE_PLATFORM_XLIB_KHR"],
+            "subConfigurations": {
+                "erupted": "dub-platform-xlib-derelict-loader"
+            },
+            "libs": [ "X11", "Xi", "Xrandr", "pthread", "Xxf86vm","GL", "GLU", "Xinerama", "Xcursor" ]
+        },
+        {
+            "name": "windows",
+            "platforms": ["windows"],
+            "versions": ["VK_USE_PLATFORM_WIN32_KHR"],
+            "subConfigurations": {
+                "erupted": "with-derelict-loader"
+            }
+        }
+    ],
+    "dependencies": {
+        "derelict-sdl2": ">=2.0.0",
+        "erupted": "~>1.4.9"
+    }
 }

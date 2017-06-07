@@ -34,6 +34,21 @@ void multiply( Matrix4x4 ma, Matrix4x4 mb, out Matrix4x4 result )
     }
 }
 
+void makeProjection( float left, float right, float bottom, float top, float nearDepth, float farDepth, out Matrix4x4 result )
+{
+    const float tx = -((right + left) / (right - left));
+    const float ty = -((top + bottom) / (top - bottom));
+    const float tz = -((farDepth + nearDepth) / (farDepth - nearDepth));
+
+    result.m =
+      [
+       2.0f / (right - left), 0.0f, 0.0f, 0.0f,
+       0.0f, 2.0f / (top - bottom), 0.0f, 0.0f,
+       0.0f, 0.0f, -2.0f / (farDepth - nearDepth), 0.0f,
+       tx, ty, tz, 1.0f
+       ];
+}
+
 public align(16) struct Matrix4x4
 {
     public void initFrom( float[] data )

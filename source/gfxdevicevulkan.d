@@ -1,5 +1,6 @@
 import core.stdc.string;
 import erupted;
+import matrix4x4;
 import std.conv;
 import std.exception;
 import std.stdio;
@@ -42,7 +43,7 @@ enum CullMode
 
 class GfxDeviceVulkan
 {
-    this( int width, int height, void* windowHandleOrWindow, void* Display )
+    this( int width, int height, void* windowHandleOrWindow, void* display )
     {
         DerelictErupted.load();
         VkApplicationInfo appinfo;
@@ -98,8 +99,8 @@ class GfxDeviceVulkan
         {
             VkWin32SurfaceCreateInfoKHR surfaceCreateInfo;
             surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-            surfaceCreateInfo.hinstance = windowHandle;
-            surfaceCreateInfo.hwnd = windowHandle;
+            surfaceCreateInfo.hinstance = windowHandleOrWindow;
+            surfaceCreateInfo.hwnd = windowHandleOrWindow;
             enforceVk( vkCreateWin32SurfaceKHR( instance, &surfaceCreateInfo, null, &surface ) );
         }
         version(linux)
@@ -108,8 +109,8 @@ class GfxDeviceVulkan
               VkStructureType.VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR,
               null,
               0,
-              sdlWindowInfo.info.x11.display,
-              sdlWindowInfo.info.x11.window
+              display,
+              windowHandleOrWindow
             );
             enforceVk( vkCreateXlibSurfaceKHR( instance, &xlibInfo, null, &surface ) );
         }
@@ -446,6 +447,10 @@ class GfxDeviceVulkan
 
         VkWriteDescriptorSet[ 1 ] sets = [ uboSet/*, samplerSet*/ ];
         vkUpdateDescriptorSets( device, 1, sets.ptr, 0, null );
+
+        Matrix4x4 projection;
+        makeProjection( 0, width, height, 0, 0, 1, projection );
+        memcpy( quadUbo.data, &projection.m[ 0 ], Matrix4x4.sizeof );
     }
 
     void endFrame()

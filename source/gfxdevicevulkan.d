@@ -450,6 +450,11 @@ class GfxDeviceVulkan
 
         Matrix4x4 projection;
         makeProjection( 0, width, height, 0, 0, 1, projection );
+        /*for (int i = 0; i < 16; ++i)
+        {
+          write( projection.m[i], " " );
+        }
+        writeln();*/
         memcpy( quadUbo.data, &projection.m[ 0 ], Matrix4x4.sizeof );
     }
 
@@ -498,7 +503,7 @@ class GfxDeviceVulkan
         clearColor.int32 = [ 1, 0, 0, 1 ];
         VkClearValue[ 2 ] clearValues;
         clearValues[ 0 ].color = clearColor;
-        //clearValues[ 1 ].depthStencil = { 1.0f, 0 };
+        clearValues[ 1 ].depthStencil = VkClearDepthStencilValue( 1.0f, 0 );
 
         VkRenderPassBeginInfo renderPassBeginInfo;
         renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -517,10 +522,12 @@ class GfxDeviceVulkan
         vkCmdBeginRenderPass( drawCmdBuffers[ currentBuffer ], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE );
 
         VkViewport viewport;
+        viewport.x = 0.0f;
+        viewport.y = 0.0f;
         viewport.height = cast(float)windowHeight;
         viewport.width = cast(float)windowWidth;
-        viewport.minDepth = cast(float) 0.0f;
-        viewport.maxDepth = cast(float) 1.0f;
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
         vkCmdSetViewport( drawCmdBuffers[ currentBuffer ], 0, 1, &viewport );
 
         VkRect2D scissor;
@@ -1053,7 +1060,8 @@ class GfxDeviceVulkan
         VkPipelineInputAssemblyStateCreateInfo inputAssemblyState;
         inputAssemblyState.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
         inputAssemblyState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-
+        inputAssemblyState.primitiveRestartEnable = VK_FALSE;
+        
         VkPipelineRasterizationStateCreateInfo rasterizationState;
         rasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
         rasterizationState.polygonMode = VK_POLYGON_MODE_FILL;
@@ -1061,9 +1069,11 @@ class GfxDeviceVulkan
         rasterizationState.cullMode = VK_CULL_MODE_NONE;
         rasterizationState.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
         rasterizationState.depthClampEnable = VK_FALSE;
-        rasterizationState.depthBiasClamp = 0.0;
+        rasterizationState.depthBiasClamp = 0.0f;
         rasterizationState.rasterizerDiscardEnable = VK_FALSE;
         rasterizationState.depthBiasEnable = VK_FALSE;
+        rasterizationState.depthBiasSlopeFactor = 0.0f;
+        rasterizationState.depthBiasConstantFactor = 0.0f;
         rasterizationState.lineWidth = 1;
 
         VkPipelineColorBlendAttachmentState[ 1 ] blendAttachmentState;
@@ -1099,7 +1109,8 @@ class GfxDeviceVulkan
         multisampleState.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
         multisampleState.pSampleMask = null;
         multisampleState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-
+        multisampleState.minSampleShading = 0.0f;
+        
         VkPipelineShaderStageCreateInfo[ 2 ] shaderStages;
 
         shaderStages[ 0 ] = shader.vertexInfo;

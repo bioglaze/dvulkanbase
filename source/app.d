@@ -28,7 +28,7 @@ void main()
         writeln( "Failed to initialize SDL: ", message );
     }
 
-    auto sdlWindow = SDL_CreateWindow( "vulkan basecode", 0, 0, width, height, SDL_WINDOW_SHOWN );
+    auto sdlWindow = SDL_CreateWindow( "vulkan basecode", 100, 0, width, height, SDL_WINDOW_SHOWN );
     SDL_SysWMinfo info;
     auto success = SDL_GetWindowWMInfo( sdlWindow, &info );
     version(Windows)

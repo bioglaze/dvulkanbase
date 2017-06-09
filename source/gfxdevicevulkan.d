@@ -125,6 +125,7 @@ class GfxDeviceVulkan
         createUniformBuffer( quadUbo );
         
         drawCmdBuffers = new VkCommandBuffer[ swapChainBuffers.length ];
+        frameBuffers = new VkFramebuffer[ swapChainBuffers.length ];
 
         VkCommandBufferAllocateInfo commandBufferAllocateInfo;
         commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -153,7 +154,7 @@ class GfxDeviceVulkan
         frameBufferCreateInfo.height = cast(uint32_t) height;
         frameBufferCreateInfo.layers = 1;
 
-        for (uint32_t bufferIndex = 0; bufferIndex < 2; ++bufferIndex)
+        for (uint32_t bufferIndex = 0; bufferIndex < swapChainBuffers.length; ++bufferIndex)
         {
             attachments[ 0 ] = swapChainBuffers[ bufferIndex ].view;
             enforceVk( vkCreateFramebuffer( device, &frameBufferCreateInfo, null, &frameBuffers[ bufferIndex ] ) );
@@ -1279,7 +1280,7 @@ class GfxDeviceVulkan
     VkCommandPool cmdPool;
     VkSemaphore presentCompleteSemaphore;
     VkSemaphore renderCompleteSemaphore;
-    VkFramebuffer[ 2 ] frameBuffers;
+    VkFramebuffer[] frameBuffers;
     VkRenderPass renderPass;
     VkDescriptorSetLayout descriptorSetLayout;
     VkDescriptorSet[] descriptorSets;

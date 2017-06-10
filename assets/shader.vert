@@ -9,6 +9,7 @@ out gl_PerVertex { vec4 gl_Position; };
 layout(std140, binding=0) uniform PerDraw
 {
     mat4 modelToClip;
+    vec4 tintColor;
 };
 
 out vec2 vUV;
@@ -16,8 +17,6 @@ out vec2 vUV;
 void main()
 {
     gl_Position = modelToClip * vec4( inPosition, 1.0 );
-    gl_Position.y = -gl_Position.y;
-    gl_Position.z = (gl_Position.z + gl_Position.w) / 2.0;
 
     vUV = inUV;
 }

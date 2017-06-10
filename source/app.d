@@ -11,26 +11,15 @@ import std.string;
 
 void main()
 {
-    int4 v = 7;
-    writeln( "jeejee: ", v.array[0] );
-
-    Matrix4x4 a, b, c;
-    multiply( a, b, c );
-    writeln( "c: ", c.m[0] );
-
-    int width = 800;
-    int height = 600;
+    immutable int width = 800;
+    immutable int height = 600;
 
     DerelictSDL2.load();
-    if (SDL_Init( SDL_INIT_VIDEO ) < 0)
-    {
-        const(char)* message = SDL_GetError();
-        writeln( "Failed to initialize SDL: ", message );
-    }
 
     auto sdlWindow = SDL_CreateWindow( "vulkan basecode", 100, 0, width, height, SDL_WINDOW_SHOWN );
     SDL_SysWMinfo info;
     auto success = SDL_GetWindowWMInfo( sdlWindow, &info );
+
     version(Windows)
     {
         GfxDeviceVulkan gfxdevice = new GfxDeviceVulkan( width, height, info.info.win.window, null );
@@ -42,6 +31,13 @@ void main()
 
     bool quit = false;
 
+    Matrix4x4 projection;
+    makeProjection( 0, width, height, 0, 0, 1, projection );
+
+    UniformBuffer ubo;
+    ubo.modelToClip = projection;
+    ubo.tintColor = [ 1, 1, 0, 1 ];
+    
     while (!quit)
     {
         SDL_Event event;
@@ -59,7 +55,7 @@ void main()
         }
 
         gfxdevice.beginFrame( width, height );
-        gfxdevice.draw( gfxdevice.vertexBuffer, 0, 2, gfxdevice.shader, BlendMode.Off, DepthFunc.NoneWriteOff, CullMode.Off/*, gfxdevice.quad1Ubo.uboDesc*/ );
+        gfxdevice.draw( gfxdevice.vertexBuffer, 0, 2, gfxdevice.shader, BlendMode.Off, DepthFunc.NoneWriteOff, CullMode.Off, ubo );
         gfxdevice.endFrame();
     }
 }

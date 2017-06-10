@@ -41,6 +41,12 @@ enum CullMode
     Off,
 }
 
+struct UniformBuffer
+{
+    Matrix4x4 modelToClip;
+    float[ 4 ] tintColor;
+}
+
 class GfxDeviceVulkan
 {
     this( int width, int height, void* windowHandleOrWindow, void* display )
@@ -50,12 +56,23 @@ class GfxDeviceVulkan
         appinfo.pApplicationName = "VulkanBase";
         appinfo.apiVersion = VK_MAKE_VERSION( 1, 0, 2 );
 
-        const(char*)[3] extensionNames = [
-        "VK_KHR_surface",
-        "VK_KHR_win32_surface",
-          //"VK_KHR_xlib_surface",
-        "VK_EXT_debug_report"
-        ];
+        version(Windows)
+        {
+            const(char*)[3] extensionNames = [
+                                            "VK_KHR_surface",
+                                            "VK_KHR_win32_surface",
+                                            "VK_EXT_debug_report"
+                                            ];
+        }
+        version(linux)
+        {
+            const(char*)[3] extensionNames = [
+                                            "VK_KHR_surface",
+                                            "VK_KHR_xlib_surface",
+                                            "VK_EXT_debug_report"
+                                            ];
+        }
+        
         uint extensionCount = 0;
         vkEnumerateInstanceExtensionProperties( null, &extensionCount, null );
 
@@ -122,7 +139,7 @@ class GfxDeviceVulkan
         flushSetupCommandBuffer();
         createDescriptorSetLayout();
         createDescriptorPool();
-        createUniformBuffer( quadUbo );
+        createUniformBuffer( quad1Ubo );
         
         drawCmdBuffers = new VkCommandBuffer[ swapChainBuffers.length ];
         frameBuffers = new VkFramebuffer[ swapChainBuffers.length ];
@@ -178,12 +195,12 @@ class GfxDeviceVulkan
 
     private void createDescriptorSetLayout()
     {
-        // Binding 0 : Uniform buffer (Vertex shader)
+        // Binding 0 : Uniform buffer
         VkDescriptorSetLayoutBinding layoutBindingUBO;
         layoutBindingUBO.binding = 0;
         layoutBindingUBO.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         layoutBindingUBO.descriptorCount = 1;
-        layoutBindingUBO.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+        layoutBindingUBO.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
         layoutBindingUBO.pImmutableSamplers = null;
 
         // Binding 1 : Sampler (Fragment shader)
@@ -443,20 +460,11 @@ class GfxDeviceVulkan
         uboSet.dstSet = descriptorSets[ descriptorSetIndex ];
         uboSet.descriptorCount = 1;
         uboSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        uboSet.pBufferInfo = &quadUbo.desc;
+        uboSet.pBufferInfo = &quad1Ubo.desc;
         uboSet.dstBinding = 0;
 
         VkWriteDescriptorSet[ 1 ] sets = [ uboSet/*, samplerSet*/ ];
         vkUpdateDescriptorSets( device, 1, sets.ptr, 0, null );
-
-        Matrix4x4 projection;
-        makeProjection( 0, width, height, 0, 0, 1, projection );
-        /*for (int i = 0; i < 16; ++i)
-        {
-          write( projection.m[i], " " );
-        }
-        writeln();*/
-        memcpy( quadUbo.data, &projection.m[ 0 ], Matrix4x4.sizeof );
     }
 
     void endFrame()
@@ -1038,8 +1046,10 @@ class GfxDeviceVulkan
         return result;
     }
   
-    void draw( VertexBuffer vb, int startIndex, int endIndex, Shader aShader, BlendMode blendMode, DepthFunc depthFunc, CullMode cullMode )
+    void draw( VertexBuffer vb, int startIndex, int endIndex, Shader aShader, BlendMode blendMode, DepthFunc depthFunc, CullMode cullMode, UniformBuffer unif )
     {
+        memcpy( quad1Ubo.data, &unif, unif.sizeof );
+
         uint64_t psoHash = getPsoHash( vb, aShader, blendMode, depthFunc, cullMode );
 
         if (psoHash !in psoCache)
@@ -1293,7 +1303,7 @@ class GfxDeviceVulkan
 
     VertexPTC[] quadVertices;
     Face[] quadIndices;
-    Ubo quadUbo;
+    Ubo quad1Ubo;
     Shader shader;
 
     VkPipeline[ uint64_t ] psoCache;

@@ -37,14 +37,14 @@ void multiply( Matrix4x4 ma, Matrix4x4 mb, out Matrix4x4 result )
 void makeProjection( float left, float right, float bottom, float top, float nearDepth, float farDepth, out Matrix4x4 result )
 {
     const float tx = -((right + left) / (right - left));
-    const float ty = -((top + bottom) / (top - bottom));
-    const float tz = -((farDepth + nearDepth) / (farDepth - nearDepth));
+    const float ty = -((bottom + top) / (bottom - top));
+    const float tz = nearDepth / (nearDepth - farDepth);
 
     result.m =
       [
        2.0f / (right - left), 0.0f, 0.0f, 0.0f,
-       0.0f, 2.0f / (top - bottom), 0.0f, 0.0f,
-       0.0f, 0.0f, -2.0f / (farDepth - nearDepth), 0.0f,
+       0.0f, 2.0f / (bottom - top), 0.0f, 0.0f,
+       0.0f, 0.0f, 1.0f / (nearDepth - farDepth), 0.0f,
        tx, ty, tz, 1.0f
        ];
 }

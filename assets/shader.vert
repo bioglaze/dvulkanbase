@@ -12,7 +12,7 @@ layout(std140, binding=0) uniform PerDraw
     vec4 tintColor;
 };
 
-out vec2 vUV;
+layout (location = 0) out vec2 vUV;
 
 void main()
 {

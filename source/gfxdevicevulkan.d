@@ -497,12 +497,12 @@ class GfxDeviceVulkan
         presentInfo.waitSemaphoreCount = 1;
         enforceVk( vkQueuePresentKHR( graphicsQueue, &presentInfo ) );
 
-        enforceVk( vkQueueWaitIdle( graphicsQueue ) );
+        //enforceVk( vkQueueWaitIdle( graphicsQueue ) );
     }
 
     private void beginRenderPass( int windowWidth, int windowHeight )
     {
-        enforceVk( vkDeviceWaitIdle( device ) );
+      //enforceVk( vkDeviceWaitIdle( device ) );
 
         VkCommandBufferBeginInfo cmdBufInfo;
         cmdBufInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;

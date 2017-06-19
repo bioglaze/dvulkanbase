@@ -5,10 +5,6 @@ import matrix4x4;
 import std.stdio;
 import std.string;
 
-/** TODO:
-    * Process 2 frames
-*/
-
 void main()
 {
     immutable int width = 800;
@@ -37,6 +33,8 @@ void main()
     UniformBuffer ubo;
     ubo.modelToClip = projection;
     ubo.tintColor = [ 1, 1, 0, 1 ];
+
+    int frame = 0;
     
     while (!quit)
     {
@@ -54,8 +52,11 @@ void main()
             }
         }
 
+        ubo.tintColor = ((frame % 10) < 5) ? [ 1, 0, 0, 1 ] : [ 0, 1, 0, 1 ];
         gfxdevice.beginFrame( width, height );
         gfxdevice.draw( gfxdevice.vertexBuffer, 0, 2, gfxdevice.shader, BlendMode.Off, DepthFunc.NoneWriteOff, CullMode.Off, ubo );
         gfxdevice.endFrame();
+
+        ++frame;
     }
 }

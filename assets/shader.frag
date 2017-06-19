@@ -6,7 +6,7 @@ layout(std140, binding=0) uniform PerDraw
     vec4 tintColor;
 };
 
-in vec2 vUV;
+layout (location = 0) in vec2 vUV;
 layout (location = 0) out vec4 fragColor;
 
 void main()

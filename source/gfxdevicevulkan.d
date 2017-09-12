@@ -190,7 +190,8 @@ class GfxDeviceVulkan
 
         vertexBuffer.generate( quadVertices, quadIndices, this );
     
-        shader.load( "assets/shader.vert.spv", "assets/shader.frag.spv", device );
+        //shader.load( "assets/shader.vert.spv", "assets/shader.frag.spv", device );
+        shader.load( "assets/shader_vert_hlsl.spv", "assets/shader_frag_hlsl.spv", device );
     }
 
     private void createDescriptorSetLayout()

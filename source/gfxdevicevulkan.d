@@ -1086,8 +1086,9 @@ class GfxDeviceVulkan
         vkCmdBindDescriptorSets( drawCmdBuffers[ currentBuffer ], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[ descriptorSetIndex ], 0, null );
         vkCmdBindPipeline( drawCmdBuffers[ currentBuffer ], VK_PIPELINE_BIND_POINT_GRAPHICS, psoCache[ psoHash ] );
 
-        VkDeviceSize[ 1 ] offsets = [ 0 ];
-        vkCmdBindVertexBuffers( drawCmdBuffers[ currentBuffer ], 0, 1, &vb.vertexBuffer, offsets.ptr );
+        VkDeviceSize[ 3 ] offsets = [ 0, 0, 0 ];
+        VkBuffer[ 3 ] buffers = [ vb.positionBuffer, vb.uvBuffer, vb.colorBuffer ];
+        vkCmdBindVertexBuffers( drawCmdBuffers[ currentBuffer ], 0, 3, buffers.ptr, offsets.ptr );
         vkCmdBindIndexBuffer( drawCmdBuffers[ currentBuffer ], vb.indexBuffer, 0, VK_INDEX_TYPE_UINT16 );
         vkCmdDrawIndexed( drawCmdBuffers[ currentBuffer ], (endIndex - startIndex) * 3, 1, startIndex * 3, 0, 0 );
     }
@@ -1336,11 +1337,29 @@ class GfxDeviceVulkan
     VkPipelineCache pipelineCache;
     int descriptorSetIndex;
   
-  
     struct VertexBuffer
     {
         void generate( VertexPTC[] vertices, Face[] indices, GfxDeviceVulkan gfxDevice )
         {
+            float[] positions = new float[ vertices.length * 3 ];
+            float[] uvs = new float[ vertices.length * 2 ];
+            float[] colors = new float[ vertices.length * 4 ];
+
+            for (int vertexIndex = 0; vertexIndex < vertices.length; ++vertexIndex)
+            {
+                positions[ vertexIndex * 3 + 0 ] = vertices[ vertexIndex ].x;
+                positions[ vertexIndex * 3 + 1 ] = vertices[ vertexIndex ].y;
+                positions[ vertexIndex * 3 + 2 ] = vertices[ vertexIndex ].z;
+
+                uvs[ vertexIndex * 2 + 0 ] = vertices[ vertexIndex ].u;
+                uvs[ vertexIndex * 2 + 1 ] = vertices[ vertexIndex ].v;
+
+                colors[ vertexIndex * 4 + 0 ] = vertices[ vertexIndex ].r;
+                colors[ vertexIndex * 4 + 1 ] = vertices[ vertexIndex ].g;
+                colors[ vertexIndex * 4 + 2 ] = vertices[ vertexIndex ].b;
+                colors[ vertexIndex * 4 + 3 ] = vertices[ vertexIndex ].a;
+            }
+            
             struct StagingBuffer
             {
                 VkDeviceMemory memory;
@@ -1349,30 +1368,73 @@ class GfxDeviceVulkan
 
             struct StagingBuffers
             {
-                StagingBuffer vertices;
+                StagingBuffer positions;
+                StagingBuffer uvs;
+                StagingBuffer colors;
                 StagingBuffer indices;
             }
 
             StagingBuffers stagingBuffers;
-            
-            int vertexBufferSize = cast(int)(vertices.length * VertexPTC.sizeof);
-
-            // Vertex buffer
-            gfxDevice.createBuffer( stagingBuffers.vertices.buffer, vertexBufferSize, stagingBuffers.vertices.memory, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, "staging vertex buffer" );
 
             void* bufferData = null;
-            enforceVk( vkMapMemory( gfxDevice.device, stagingBuffers.vertices.memory, 0, vertexBufferSize, 0, &bufferData ) );
+            
+            // Position buffer
+            {
+                int positionBufferSize = cast(int)(positions.length * float.sizeof);
+              
+                gfxDevice.createBuffer( stagingBuffers.positions.buffer, positionBufferSize, stagingBuffers.positions.memory, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, "staging position buffer" );
 
-            memcpy( bufferData, vertices.ptr, vertexBufferSize );
-            vkUnmapMemory( gfxDevice.device, stagingBuffers.vertices.memory );
+                enforceVk( vkMapMemory( gfxDevice.device, stagingBuffers.positions.memory, 0, positionBufferSize, 0, &bufferData ) );
 
-            gfxDevice.createBuffer( vertexBuffer, vertexBufferSize, vertexMem, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, "vertex buffer" );
-            assert( vertexBuffer != VK_NULL_HANDLE, "vertex buffer is null" );
-            gfxDevice.copyBuffer( stagingBuffers.vertices.buffer, vertexBuffer, vertexBufferSize );
+                memcpy( bufferData, positions.ptr, positionBufferSize );
+                vkUnmapMemory( gfxDevice.device, stagingBuffers.positions.memory );
 
-            vkDestroyBuffer( gfxDevice.device, stagingBuffers.vertices.buffer, null );
-            vkFreeMemory( gfxDevice.device, stagingBuffers.vertices.memory, null );
+                gfxDevice.createBuffer( positionBuffer, positionBufferSize, positionMem, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, "position buffer" );
+                assert( positionBuffer != VK_NULL_HANDLE, "position buffer is null" );
+                gfxDevice.copyBuffer( stagingBuffers.positions.buffer, positionBuffer, positionBufferSize );
 
+                vkDestroyBuffer( gfxDevice.device, stagingBuffers.positions.buffer, null );
+                vkFreeMemory( gfxDevice.device, stagingBuffers.positions.memory, null );
+            }
+
+            // UV buffer
+            {
+                int uvBufferSize = cast(int)(uvs.length * float.sizeof);
+              
+                gfxDevice.createBuffer( stagingBuffers.uvs.buffer, uvBufferSize, stagingBuffers.uvs.memory, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, "staging uv buffer" );
+
+                enforceVk( vkMapMemory( gfxDevice.device, stagingBuffers.uvs.memory, 0, uvBufferSize, 0, &bufferData ) );
+
+                memcpy( bufferData, uvs.ptr, uvBufferSize );
+                vkUnmapMemory( gfxDevice.device, stagingBuffers.uvs.memory );
+
+                gfxDevice.createBuffer( uvBuffer, uvBufferSize, uvMem, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, "uv buffer" );
+                assert( uvBuffer != VK_NULL_HANDLE, "uv buffer is null" );
+                gfxDevice.copyBuffer( stagingBuffers.uvs.buffer, uvBuffer, uvBufferSize );
+
+                vkDestroyBuffer( gfxDevice.device, stagingBuffers.uvs.buffer, null );
+                vkFreeMemory( gfxDevice.device, stagingBuffers.uvs.memory, null );
+            }
+
+            // Color buffer
+            {
+                int colorBufferSize = cast(int)(colors.length * float.sizeof);
+              
+                gfxDevice.createBuffer( stagingBuffers.colors.buffer, colorBufferSize, stagingBuffers.colors.memory, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, "staging color buffer" );
+
+                enforceVk( vkMapMemory( gfxDevice.device, stagingBuffers.colors.memory, 0, colorBufferSize, 0, &bufferData ) );
+
+                memcpy( bufferData, colors.ptr, colorBufferSize );
+                vkUnmapMemory( gfxDevice.device, stagingBuffers.colors.memory );
+
+                gfxDevice.createBuffer( colorBuffer, colorBufferSize, colorMem, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, "color buffer" );
+                assert( colorBuffer != VK_NULL_HANDLE, "color buffer is null" );
+                gfxDevice.copyBuffer( stagingBuffers.colors.buffer, colorBuffer, colorBufferSize );
+
+                vkDestroyBuffer( gfxDevice.device, stagingBuffers.colors.buffer, null );
+                vkFreeMemory( gfxDevice.device, stagingBuffers.colors.memory, null );
+            }
+            
             // Index buffer
             int indexBufferSize = cast(int)(indices.length * Face.sizeof);
 
@@ -1389,35 +1451,42 @@ class GfxDeviceVulkan
             vkDestroyBuffer( gfxDevice.device, stagingBuffers.indices.buffer, null );
             vkFreeMemory( gfxDevice.device, stagingBuffers.indices.memory, null );
 
-            const int VERTEX_BUFFER_BIND_ID = 0;
             const int POSITION_INDEX = 0;
             const int TEXCOORD_INDEX = 1;
             const int COLOR_INDEX = 2;
             
-            bindingDescriptions = new VkVertexInputBindingDescription[ 1 ];
-            bindingDescriptions[ 0 ].binding = VERTEX_BUFFER_BIND_ID;
-            bindingDescriptions[ 0 ].stride = VertexPTC.sizeof;
+            bindingDescriptions = new VkVertexInputBindingDescription[ 3 ];
+            bindingDescriptions[ 0 ].binding = 0;
+            bindingDescriptions[ 0 ].stride = 3 * float.sizeof;
             bindingDescriptions[ 0 ].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+            bindingDescriptions[ 1 ].binding = 1;
+            bindingDescriptions[ 1 ].stride = 2 * float.sizeof;
+            bindingDescriptions[ 1 ].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+            bindingDescriptions[ 2 ].binding = 2;
+            bindingDescriptions[ 2 ].stride = 4 * float.sizeof;
+            bindingDescriptions[ 2 ].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
             attributeDescriptions = new VkVertexInputAttributeDescription[ 3 ];
 
             // Location 0 : Position
-            attributeDescriptions[ 0 ].binding = VERTEX_BUFFER_BIND_ID;
+            attributeDescriptions[ 0 ].binding = 0;
             attributeDescriptions[ 0 ].location = POSITION_INDEX;
             attributeDescriptions[ 0 ].format = VK_FORMAT_R32G32B32_SFLOAT;
             attributeDescriptions[ 0 ].offset = 0;
 
             // Location 1 : TexCoord
-            attributeDescriptions[ 1 ].binding = VERTEX_BUFFER_BIND_ID;
+            attributeDescriptions[ 1 ].binding = 1;
             attributeDescriptions[ 1 ].location = TEXCOORD_INDEX;
             attributeDescriptions[ 1 ].format = VK_FORMAT_R32G32_SFLOAT;
-            attributeDescriptions[ 1 ].offset = float.sizeof * 3;
+            attributeDescriptions[ 1 ].offset = 0;
 
             // Location 2 : Color
-            attributeDescriptions[ 2 ].binding = VERTEX_BUFFER_BIND_ID;
+            attributeDescriptions[ 2 ].binding = 2;
             attributeDescriptions[ 2 ].location = COLOR_INDEX;
             attributeDescriptions[ 2 ].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-            attributeDescriptions[ 2 ].offset = float.sizeof * 5;
+            attributeDescriptions[ 2 ].offset = 0;
 
             inputState.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
             inputState.pNext = null;
@@ -1427,8 +1496,12 @@ class GfxDeviceVulkan
             inputState.pVertexAttributeDescriptions = attributeDescriptions.ptr;
         }
 
-        VkBuffer vertexBuffer;
-        VkDeviceMemory vertexMem;
+        VkBuffer positionBuffer;
+        VkBuffer uvBuffer;
+        VkBuffer colorBuffer;
+        VkDeviceMemory positionMem;
+        VkDeviceMemory uvMem;
+        VkDeviceMemory colorMem;
         VkPipelineVertexInputStateCreateInfo inputState;
         VkBuffer indexBuffer;
         VkDeviceMemory indexMem;

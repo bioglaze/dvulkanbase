@@ -4,6 +4,7 @@ import gfxdevicevulkan;
 import matrix4x4;
 import std.stdio;
 import std.string;
+import texture2d;
 
 void main()
 {
@@ -34,6 +35,9 @@ void main()
     ubo.modelToClip = projection;
     ubo.tintColor = [ 1, 1, 0, 1 ];
 
+    Texture2D texture;
+    texture.CreateCheckerboard( 256, 256 );
+    
     int frame = 0;
     
     while (!quit)

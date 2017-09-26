@@ -1,0 +1,29 @@
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{B15E3001-07E4-4F47-A787-6EBDDEA87A1B}") = "dvulkanbase", ".dub/dvulkanbase.visualdproj", "{C3721A91-2A98-40B4-9C94-587D7731636E}"
+	ProjectSection(ProjectDependencies) = postProject
+		{2B50844F-ABED-4F62-AF36-84C63C546E3A} = {2B50844F-ABED-4F62-AF36-84C63C546E3A}
+		{2D6FBA23-EEA2-411D-953D-356712184C05} = {2D6FBA23-EEA2-411D-953D-356712184C05}
+		{2D6FBA23-EEA2-411D-953D-356712184C05} = {2D6FBA23-EEA2-411D-953D-356712184C05}
+	EndProjectSection
+EndProject
+Project("{B15E3001-07E4-4F47-A787-6EBDDEA87A1B}") = "derelict-sdl2", ".dub/derelict-sdl2.visualdproj", "{2B50844F-ABED-4F62-AF36-84C63C546E3A}"
+EndProject
+Project("{B15E3001-07E4-4F47-A787-6EBDDEA87A1B}") = "derelict-util", ".dub/derelict-util.visualdproj", "{2D6FBA23-EEA2-411D-953D-356712184C05}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		debug|x64 = debug|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C3721A91-2A98-40B4-9C94-587D7731636E}.debug|x64.ActiveCfg = debug|x64
+		{C3721A91-2A98-40B4-9C94-587D7731636E}.debug|x64.Build.0 = debug|x64
+		{2B50844F-ABED-4F62-AF36-84C63C546E3A}.debug|x64.ActiveCfg = debug|x64
+		{2B50844F-ABED-4F62-AF36-84C63C546E3A}.debug|x64.Build.0 = debug|x64
+		{2D6FBA23-EEA2-411D-953D-356712184C05}.debug|x64.ActiveCfg = debug|x64
+		{2D6FBA23-EEA2-411D-953D-356712184C05}.debug|x64.Build.0 = debug|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

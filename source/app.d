@@ -35,8 +35,8 @@ void main()
     ubo.modelToClip = projection;
     ubo.tintColor = [ 1, 1, 0, 1 ];
 
-    Texture2D texture;
-    texture.CreateCheckerboard( 256, 256 );
+    Texture2D texture = new Texture2D();
+    texture.createCheckerboard( gfxdevice.device, gfxdevice.deviceMemoryProperties, 256, 256 );
     
     int frame = 0;
     

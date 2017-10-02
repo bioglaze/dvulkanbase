@@ -23,7 +23,7 @@ private void getMemoryType( VkPhysicalDeviceMemoryProperties memoryProperties, u
 
 class Texture2D
 {
-    public void createCheckerboard( VkDevice device, VkPhysicalDeviceMemoryProperties memoryProperties, int aWidth, int aHeight )
+    public void createCheckerboard( VkDevice device, VkPhysicalDeviceMemoryProperties memoryProperties, VkCommandBuffer cmdBuffer, int aWidth, int aHeight )
     {
         width = aWidth;
         height = aHeight;
@@ -54,10 +54,59 @@ class Texture2D
 
 		enforceVk( vkBindBufferMemory( device, stagingBuffer, stagingMemory, 0 ) );
 
+		uint8_t[] data = new uint8_t[ width * height * 4 ];
+		
+		for (int i = 0; i < width * height * 4; ++i)
+		{
+			data[ i ] = 0xFF;
+		}
+
 		uint8_t* stagingData = null;
 		enforceVk( vkMapMemory( device, stagingMemory, 0, memReqs.size, 0, cast(void**)&stagingData ) );
-		//memcpy( stagingData, data, imageSize );
+		memcpy( stagingData, data.ptr, imageSize );
 		vkUnmapMemory( device, stagingMemory );
+
+		VkBufferImageCopy bufferCopyRegion;
+		bufferCopyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        bufferCopyRegion.imageSubresource.mipLevel = 0;
+        bufferCopyRegion.imageSubresource.baseArrayLayer = 0;
+        bufferCopyRegion.imageSubresource.layerCount = 1;
+        bufferCopyRegion.imageExtent.width = width;
+        bufferCopyRegion.imageExtent.height = height;
+        bufferCopyRegion.imageExtent.depth = 1;
+        bufferCopyRegion.bufferOffset = 0;
+
+		VkImageCreateInfo imageCreateInfo;
+		imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		imageCreateInfo.pNext = null;
+		imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+		imageCreateInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+		imageCreateInfo.mipLevels = 1;
+		imageCreateInfo.arrayLayers = 1;
+		imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+		imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+		imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_PREINITIALIZED;
+		imageCreateInfo.extent = VkExtent3D( width, height, 1 );
+		imageCreateInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+
+		enforceVk( vkCreateImage( device, &imageCreateInfo, null, &image ) );
+
+		vkGetImageMemoryRequirements( device, image, &memReqs );
+
+		memAllocInfo.allocationSize = memReqs.size;
+		getMemoryType( memoryProperties, memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &memAllocInfo.memoryTypeIndex );
+
+		enforceVk( vkAllocateMemory( device, &memAllocInfo, null, &deviceMemory ) );
+		enforceVk( vkBindImageMemory( device, image, deviceMemory, 0 ) );
+
+		VkCommandBufferBeginInfo cmdBufInfo;
+		cmdBufInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		cmdBufInfo.pNext = null;
+		cmdBufInfo.pInheritanceInfo = null;
+		cmdBufInfo.flags = 0;
+
+		enforceVk( vkBeginCommandBuffer( cmdBuffer, &cmdBufInfo ) );
     }
 
     private static void enforceVk( VkResult res )
@@ -67,6 +116,7 @@ class Texture2D
 
     private VkImage image = VK_NULL_HANDLE;
     private VkImageView view = VK_NULL_HANDLE;
+	private VkDeviceMemory deviceMemory = VK_NULL_HANDLE;
     private int width;
     private int height;
 }

@@ -177,6 +177,14 @@ class GfxDeviceVulkan
             enforceVk( vkCreateFramebuffer( device, &frameBufferCreateInfo, null, &frameBuffers[ bufferIndex ] ) );
         }
 
+		VkCommandBufferAllocateInfo cmdBufInfo;
+        cmdBufInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        cmdBufInfo.commandPool = cmdPool;
+        cmdBufInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        cmdBufInfo.commandBufferCount = 1;
+
+        enforceVk( vkAllocateCommandBuffers( device, &cmdBufInfo, &texCmdBuffer ) );
+
         const float s = 100;
         quadVertices = new VertexPTC[ 4 ];
         quadVertices[ 0 ] = VertexPTC( 0, 0, 0, 0, 0 );
@@ -1311,6 +1319,7 @@ class GfxDeviceVulkan
     VkSwapchainKHR swapChain;
     VkImage[] swapChainImages;
     VkCommandBuffer setupCmdBuffer;
+	VkCommandBuffer texCmdBuffer;
     VkCommandBuffer[] drawCmdBuffers;
     VkCommandBuffer prePresentCmdBuffer;
     VkCommandBuffer postPresentCmdBuffer;

@@ -36,7 +36,7 @@ void main()
     ubo.tintColor = [ 1, 1, 0, 1 ];
 
     Texture2D texture = new Texture2D();
-    texture.createCheckerboard( gfxdevice.device, gfxdevice.deviceMemoryProperties, gfxdevice.texCmdBuffer, 256, 256 );
+    texture.createCheckerboard( gfxdevice.device, gfxdevice.deviceMemoryProperties, gfxdevice.texCmdBuffer, gfxdevice.graphicsQueue, 256, 256 );
     
     int frame = 0;
     

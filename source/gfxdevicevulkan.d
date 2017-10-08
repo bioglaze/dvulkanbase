@@ -781,6 +781,24 @@ class GfxDeviceVulkan
 
             enforceVk( vkCreateImageView( device, &colorAttachmentView, null, &swapChainBuffers[ i ].view ) );
         }
+
+        VkSamplerCreateInfo samplerInfo;
+        samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        samplerInfo.pNext = null;
+        samplerInfo.magFilter = VK_FILTER_NEAREST;
+        samplerInfo.minFilter = samplerInfo.magFilter;
+        samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.addressModeV = samplerInfo.addressModeU;
+        samplerInfo.addressModeW = samplerInfo.addressModeU;
+        samplerInfo.mipLodBias = 0;
+        samplerInfo.compareOp = VK_COMPARE_OP_NEVER;
+        samplerInfo.minLod = 0;
+        samplerInfo.maxLod = 1;
+        samplerInfo.maxAnisotropy = 1;
+        samplerInfo.anisotropyEnable = VK_FALSE;
+        samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+        enforceVk( vkCreateSampler( device, &samplerInfo, null, &samplerNearestRepeat ) );
     }
 
     void setImageLayout( VkCommandBuffer cmdbuffer, VkImage image, VkImageAspectFlags aspectMask, VkImageLayout oldImageLayout,
@@ -1091,6 +1109,8 @@ class GfxDeviceVulkan
             createPso( vertexBuffer, shader, blendMode, depthFunc, cullMode, psoHash );
         }
 
+        //VkDescriptorSet descriptorSet = AllocateDescriptorSet( ubos[ GfxDeviceGlobal::currentUbo ].uboDesc, view0, sampler0 );
+
         vkCmdBindDescriptorSets( drawCmdBuffers[ currentBuffer ], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[ descriptorSetIndex ], 0, null );
         vkCmdBindPipeline( drawCmdBuffers[ currentBuffer ], VK_PIPELINE_BIND_POINT_GRAPHICS, psoCache[ psoHash ] );
 
@@ -1331,6 +1351,7 @@ class GfxDeviceVulkan
     VkDescriptorSetLayout descriptorSetLayout;
     VkDescriptorSet[] descriptorSets;
     VkDescriptorPool descriptorPool;
+    VkSampler samplerNearestRepeat;
     VkPipelineLayout pipelineLayout;
     int queueNodeIndex;
     uint currentBuffer;  

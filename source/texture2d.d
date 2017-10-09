@@ -318,6 +318,11 @@ class Texture2D
         enforce( res is VkResult.VK_SUCCESS, res.to!string );
     }
 
+    public VkImageView getView()
+    {
+        return view;
+    }
+
     private VkImage image = VK_NULL_HANDLE;
     private VkImageView view = VK_NULL_HANDLE;
 	private VkDeviceMemory deviceMemory = VK_NULL_HANDLE;

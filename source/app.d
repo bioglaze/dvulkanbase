@@ -58,7 +58,7 @@ void main()
 
         ubo.tintColor = ((frame % 10) < 5) ? [ 1, 0, 0, 1 ] : [ 0, 1, 0, 1 ];
         gfxdevice.beginFrame( width, height );
-        gfxdevice.draw( gfxdevice.vertexBuffer, 0, 2, gfxdevice.shader, BlendMode.Off, DepthFunc.NoneWriteOff, CullMode.Off, ubo );
+        gfxdevice.draw( gfxdevice.vertexBuffer, 0, 2, gfxdevice.shader, BlendMode.Off, DepthFunc.NoneWriteOff, CullMode.Off, ubo, texture.getView(), gfxdevice.samplerNearestRepeat );
         gfxdevice.endFrame();
 
         ++frame;

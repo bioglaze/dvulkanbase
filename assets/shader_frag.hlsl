@@ -18,10 +18,10 @@ layout(set=0, binding=0) cbuffer Scene
 };
 
 layout(set=0, binding=1) Texture2D<float4> tex : register(t0);
-layout(set=0, binding=1) SamplerState sLinear : register(s0);
+layout(set=0, binding=2) SamplerState sLinear : register(s0);
 
 float4 main( VSOutput vsOut ) : SV_Target
 {
-    return tintColor;
-    //return tex.SampleLevel( sLinear, vsOut.uv, 0 ) * vsOut.color;
+    //return tintColor;
+    return tex.SampleLevel( sLinear, vsOut.uv, 0 );// * vsOut.color;
 };

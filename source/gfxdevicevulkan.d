@@ -212,20 +212,28 @@ class GfxDeviceVulkan
         layoutBindingUBO.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
         layoutBindingUBO.pImmutableSamplers = null;
 
-        // Binding 1 : Sampler (Fragment shader)
+        // Binding 1 : Image (Fragment shader)
+        VkDescriptorSetLayoutBinding layoutBindingImage;
+        layoutBindingImage.binding = 1;
+        layoutBindingImage.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        layoutBindingImage.descriptorCount = 1;
+        layoutBindingImage.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        layoutBindingImage.pImmutableSamplers = null;
+
+        // Binding 2 : Sampler (Fragment shader)
         VkDescriptorSetLayoutBinding layoutBindingSampler;
-        layoutBindingSampler.binding = 1;
-        layoutBindingSampler.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        layoutBindingSampler.binding = 2;
+        layoutBindingSampler.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
         layoutBindingSampler.descriptorCount = 1;
         layoutBindingSampler.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
         layoutBindingSampler.pImmutableSamplers = null;
 
-        VkDescriptorSetLayoutBinding[ 2 ] bindings = [ layoutBindingUBO, layoutBindingSampler ];
+        VkDescriptorSetLayoutBinding[ 3 ] bindings = [ layoutBindingUBO, layoutBindingImage, layoutBindingSampler ];
 
         VkDescriptorSetLayoutCreateInfo descriptorLayout;
         descriptorLayout.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
         descriptorLayout.pNext = null;
-        descriptorLayout.bindingCount = 2;
+        descriptorLayout.bindingCount = bindings.length;
         descriptorLayout.pBindings = bindings.ptr;
 
         enforceVk( vkCreateDescriptorSetLayout( device, &descriptorLayout, null, &descriptorSetLayout ) );
@@ -242,16 +250,18 @@ class GfxDeviceVulkan
     void createDescriptorPool()
     {
         const int count = 20;
-        VkDescriptorPoolSize[ 2 ] typeCounts;
+        VkDescriptorPoolSize[ 3 ] typeCounts;
         typeCounts[ 0 ].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         typeCounts[ 0 ].descriptorCount = count;
-        typeCounts[ 1 ].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        typeCounts[ 1 ].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
         typeCounts[ 1 ].descriptorCount = count;
+        typeCounts[ 2 ].type = VK_DESCRIPTOR_TYPE_SAMPLER;
+        typeCounts[ 2 ].descriptorCount = count;
 
         VkDescriptorPoolCreateInfo descriptorPoolInfo;
         descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
         descriptorPoolInfo.pNext = null;
-        descriptorPoolInfo.poolSizeCount = 2;
+        descriptorPoolInfo.poolSizeCount = typeCounts.length;
         descriptorPoolInfo.pPoolSizes = typeCounts.ptr;
         descriptorPoolInfo.maxSets = count;
         descriptorPoolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
@@ -460,20 +470,6 @@ class GfxDeviceVulkan
         enforceVk( vkAcquireNextImageKHR( device, swapChain, ulong.max, presentCompleteSemaphore, null, &currentBuffer ) );
         submitPostPresentBarrier();
         beginRenderPass( width, height );
-
-        descriptorSetIndex = (descriptorSetIndex + 1) % cast(int)descriptorSets.length;
-
-        // Binding 0 : Uniform buffer
-        VkWriteDescriptorSet uboSet;
-        uboSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        uboSet.dstSet = descriptorSets[ descriptorSetIndex ];
-        uboSet.descriptorCount = 1;
-        uboSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        uboSet.pBufferInfo = &quad1Ubo.desc;
-        uboSet.dstBinding = 0;
-
-        VkWriteDescriptorSet[ 1 ] sets = [ uboSet/*, samplerSet*/ ];
-        vkUpdateDescriptorSets( device, 1, sets.ptr, 0, null );
     }
 
     void endFrame()
@@ -1098,7 +1094,47 @@ class GfxDeviceVulkan
         return result;
     }
   
-    void draw( VertexBuffer vb, int startIndex, int endIndex, Shader aShader, BlendMode blendMode, DepthFunc depthFunc, CullMode cullMode, UniformBuffer unif )
+    private void updateDescriptorSet( VkImageView view, VkSampler sampler )
+    {
+        descriptorSetIndex = (descriptorSetIndex + 1) % cast(int)descriptorSets.length;
+
+        // Binding 0 : Uniform buffer
+        VkWriteDescriptorSet uboSet;
+        uboSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        uboSet.dstSet = descriptorSets[ descriptorSetIndex ];
+        uboSet.descriptorCount = 1;
+        uboSet.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        uboSet.pBufferInfo = &quad1Ubo.desc;
+        uboSet.dstBinding = 0;
+
+        // Binding 1 : Image
+        VkDescriptorImageInfo samplerDesc;
+        samplerDesc.sampler = sampler;
+        samplerDesc.imageView = view;
+        samplerDesc.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        VkWriteDescriptorSet imageSet;
+        imageSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        imageSet.dstSet = descriptorSets[ descriptorSetIndex ];
+        imageSet.descriptorCount = 1;
+        imageSet.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+        imageSet.pImageInfo = &samplerDesc;
+        imageSet.dstBinding = 1;
+
+        // Binding 2: Sampler
+        VkWriteDescriptorSet samplerSet;
+        samplerSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        samplerSet.dstSet = descriptorSets[ descriptorSetIndex ];
+        samplerSet.descriptorCount = 1;
+        samplerSet.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+        samplerSet.pImageInfo = &samplerDesc;
+        samplerSet.dstBinding = 2;
+
+        VkWriteDescriptorSet[ 3 ] sets = [ uboSet, imageSet, samplerSet ];
+        vkUpdateDescriptorSets( device, sets.length, sets.ptr, 0, null );
+    }
+
+    public void draw( VertexBuffer vb, int startIndex, int endIndex, Shader aShader, BlendMode blendMode, DepthFunc depthFunc, CullMode cullMode, UniformBuffer unif, VkImageView view, VkSampler sampler )
     {
         memcpy( quad1Ubo.data, &unif, unif.sizeof );
 
@@ -1109,7 +1145,7 @@ class GfxDeviceVulkan
             createPso( vertexBuffer, shader, blendMode, depthFunc, cullMode, psoHash );
         }
 
-        //VkDescriptorSet descriptorSet = AllocateDescriptorSet( ubos[ GfxDeviceGlobal::currentUbo ].uboDesc, view0, sampler0 );
+        updateDescriptorSet( view, sampler );
 
         vkCmdBindDescriptorSets( drawCmdBuffers[ currentBuffer ], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[ descriptorSetIndex ], 0, null );
         vkCmdBindPipeline( drawCmdBuffers[ currentBuffer ], VK_PIPELINE_BIND_POINT_GRAPHICS, psoCache[ psoHash ] );

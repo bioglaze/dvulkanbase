@@ -68,7 +68,8 @@ class GfxDeviceVulkan
         {
             const(char*)[3] extensionNames = [
                                             "VK_KHR_surface",
-                                            "VK_KHR_xlib_surface",
+                                            //"VK_KHR_xlib_surface",
+                                            "VK_KHR_wayland_surface",
                                             "VK_EXT_debug_report"
                                             ];
         }
@@ -122,14 +123,23 @@ class GfxDeviceVulkan
         }
         version(linux)
         {
-            auto xlibInfo = VkXlibSurfaceCreateInfoKHR(
+            /*auto xlibInfo = VkXlibSurfaceCreateInfoKHR(
               VkStructureType.VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR,
               null,
               0,
               display,
               windowHandleOrWindow
             );
-            enforceVk( vkCreateXlibSurfaceKHR( instance, &xlibInfo, null, &surface ) );
+            enforceVk( vkCreateXlibSurfaceKHR( instance, &xlibInfo, null, &surface ) );*/
+
+            auto waylandInfo = VkWaylandSurfaceCreateInfoKHR(
+              VkStructureType.VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
+              null,
+              0,
+              cast(wl_display*)display,
+              cast(wl_surface*)windowHandleOrWindow
+            );
+            enforceVk( vkCreateWaylandSurfaceKHR( instance, &waylandInfo, null, &surface ) );
         }
 
         createDevice( width, height );

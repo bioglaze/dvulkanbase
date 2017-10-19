@@ -23,7 +23,8 @@ void main()
     }
     version(linux)
     {
-        GfxDeviceVulkan gfxdevice = new GfxDeviceVulkan( width, height, info.info.x11.window, info.info.x11.display );
+        //GfxDeviceVulkan gfxdevice = new GfxDeviceVulkan( width, height, info.info.x11.window, info.info.x11.display );
+        GfxDeviceVulkan gfxdevice = new GfxDeviceVulkan( width, height, info.info.wl.surface, info.info.wl.display );
     }
 
     bool quit = false;

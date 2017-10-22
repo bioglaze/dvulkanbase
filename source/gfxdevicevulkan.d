@@ -49,7 +49,7 @@ struct UniformBuffer
 
 class GfxDeviceVulkan
 {
-    this( int width, int height, void* windowHandleOrWindow, void* display )
+    this( int width, int height, uint windowHandleOrWindow, void* display )
     {
         DerelictErupted.load();
         VkApplicationInfo appinfo;
@@ -69,7 +69,8 @@ class GfxDeviceVulkan
             const(char*)[3] extensionNames = [
                                             "VK_KHR_surface",
                                             //"VK_KHR_xlib_surface",
-                                            "VK_KHR_wayland_surface",
+                                            "VK_KHR_xcb_surface",
+                                            //"VK_KHR_wayland_surface",
                                             "VK_EXT_debug_report"
                                             ];
         }
@@ -132,14 +133,23 @@ class GfxDeviceVulkan
             );
             enforceVk( vkCreateXlibSurfaceKHR( instance, &xlibInfo, null, &surface ) );*/
 
-            auto waylandInfo = VkWaylandSurfaceCreateInfoKHR(
+            auto xcbInfo = VkXcbSurfaceCreateInfoKHR(
+              VkStructureType.VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR,
+              null,
+              0,
+              cast(xcb_connection_t*)display,
+              windowHandleOrWindow
+            );
+            enforceVk( vkCreateXcbSurfaceKHR( instance, &xcbInfo, null, &surface ) );
+
+            /*auto waylandInfo = VkWaylandSurfaceCreateInfoKHR(
               VkStructureType.VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
               null,
               0,
               cast(wl_display*)display,
               cast(wl_surface*)windowHandleOrWindow
             );
-            enforceVk( vkCreateWaylandSurfaceKHR( instance, &waylandInfo, null, &surface ) );
+            enforceVk( vkCreateWaylandSurfaceKHR( instance, &waylandInfo, null, &surface ) );*/
         }
 
         createDevice( width, height );

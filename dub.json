@@ -9,9 +9,9 @@
         {
             "name": "linux",
             "platforms": ["linux"],
-            "versions": ["VK_USE_PLATFORM_WAYLAND_KHR"],
+            "versions": ["VK_USE_PLATFORM_XCB_KHR"],
             "subConfigurations": {
-                "erupted": "dub-platform-wayland-derelict-loader"
+                "erupted": "dub-platform-xcb-derelict-loader"
             },
             "libs": [ "X11", "Xi", "Xrandr", "pthread", "Xxf86vm","GL", "GLU", "Xinerama", "Xcursor" ]
         },

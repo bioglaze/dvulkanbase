@@ -15,6 +15,9 @@ void main()
 
     auto sdlWindow = SDL_CreateWindow( "vulkan basecode", 100, 0, width, height, SDL_WINDOW_SHOWN );
     SDL_SysWMinfo info;
+    info.version_.major = 2;
+    info.version_.minor = 0;
+    info.version_.patch = 5;
     auto success = SDL_GetWindowWMInfo( sdlWindow, &info );
 
     version(Windows)
@@ -23,8 +26,8 @@ void main()
     }
     version(linux)
     {
-        //GfxDeviceVulkan gfxdevice = new GfxDeviceVulkan( width, height, info.info.x11.window, info.info.x11.display );
-        GfxDeviceVulkan gfxdevice = new GfxDeviceVulkan( width, height, info.info.wl.surface, info.info.wl.display );
+        GfxDeviceVulkan gfxdevice = new GfxDeviceVulkan( width, height, info.info.x11.window, info.info.x11.display );
+        //GfxDeviceVulkan gfxdevice = new GfxDeviceVulkan( width, height, info.info.wl.surface, info.info.wl.display );
     }
 
     bool quit = false;

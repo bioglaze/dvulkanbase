@@ -49,7 +49,7 @@ struct UniformBuffer
 
 class GfxDeviceVulkan
 {
-    this( int width, int height, uint windowHandleOrWindow, void* display )
+    this( int width, int height, void* windowHandleOrWindow, void* display )
     {
         DerelictErupted.load();
         VkApplicationInfo appinfo;

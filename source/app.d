@@ -20,14 +20,15 @@ void main()
     info.version_.patch = 5;
     auto success = SDL_GetWindowWMInfo( sdlWindow, &info );
 
+    writeln("jeejee1");
+
     version(Windows)
     {
-        GfxDeviceVulkan gfxdevice = new GfxDeviceVulkan( width, height, info.info.win.window, null );
+        GfxDeviceVulkan gfxdevice = new GfxDeviceVulkan( width, height, info.info.win.window, null, 0 );
     }
     version(linux)
     {
-        GfxDeviceVulkan gfxdevice = new GfxDeviceVulkan( width, height, info.info.x11.window, info.info.x11.display );
-        //GfxDeviceVulkan gfxdevice = new GfxDeviceVulkan( width, height, info.info.wl.surface, info.info.wl.display );
+        GfxDeviceVulkan gfxdevice = new GfxDeviceVulkan( width, height, null, info.info.x11.display, info.info.x11.window );
     }
 
     bool quit = false;
@@ -40,8 +41,10 @@ void main()
     ubo.tintColor = [ 1, 1, 0, 1 ];
 
     Texture2D texture = new Texture2D();
-    texture.createCheckerboard( gfxdevice.device, gfxdevice.deviceMemoryProperties, gfxdevice.texCmdBuffer, gfxdevice.graphicsQueue, 256, 256 );
-    
+    //texture.createCheckerboard( gfxdevice.device, gfxdevice.deviceMemoryProperties, gfxdevice.texCmdBuffer, gfxdevice.graphicsQueue, 256, 256 );
+    writeln("jeejee2");
+    texture.loadTGA( "assets/glider.tga", gfxdevice.device, gfxdevice.deviceMemoryProperties, gfxdevice.texCmdBuffer, gfxdevice.graphicsQueue, gfxdevice.texCmdBuffer );
+    writeln("jeejee");
     int frame = 0;
     
     while (!quit)

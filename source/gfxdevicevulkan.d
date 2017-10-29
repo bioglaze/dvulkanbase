@@ -49,7 +49,7 @@ struct UniformBuffer
 
 class GfxDeviceVulkan
 {
-    this( int width, int height, void* windowHandleOrWindow, void* display )
+    this( int width, int height, void* windowHandleOrWindow, void* display, uint window )
     {
         DerelictErupted.load();
         VkApplicationInfo appinfo;
@@ -68,7 +68,6 @@ class GfxDeviceVulkan
         {
             const(char*)[3] extensionNames = [
                                             "VK_KHR_surface",
-                                            //"VK_KHR_xlib_surface",
                                             "VK_KHR_xcb_surface",
                                             //"VK_KHR_wayland_surface",
                                             "VK_EXT_debug_report"
@@ -138,7 +137,7 @@ class GfxDeviceVulkan
               null,
               0,
               cast(xcb_connection_t*)display,
-              windowHandleOrWindow
+              window
             );
             enforceVk( vkCreateXcbSurfaceKHR( instance, &xcbInfo, null, &surface ) );
 
@@ -152,6 +151,7 @@ class GfxDeviceVulkan
             enforceVk( vkCreateWaylandSurfaceKHR( instance, &waylandInfo, null, &surface ) );*/
         }
 
+        writeln("gfxdevice0");
         createDevice( width, height );
         createDepthStencil( width, height );
         createSemaphores();
@@ -527,8 +527,6 @@ class GfxDeviceVulkan
 
     private void beginRenderPass( int windowWidth, int windowHeight )
     {
-      //enforceVk( vkDeviceWaitIdle( device ) );
-
         VkCommandBufferBeginInfo cmdBufInfo;
         cmdBufInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         cmdBufInfo.pNext = null;
@@ -613,7 +611,9 @@ class GfxDeviceVulkan
 
         for (uint32_t i = 0; i < queueCount; ++i)
         {
+            writeln("testing1");
             vkGetPhysicalDeviceSurfaceSupportKHR( physicalDevice, i, surface, &supportsPresent[ i ] );
+            writeln("testing2");
         }
 
         float queuePriorities = 0;
@@ -627,8 +627,12 @@ class GfxDeviceVulkan
 
         uint32_t deviceExtensionCount;
         vkEnumerateDeviceExtensionProperties( physicalDevice, null, &deviceExtensionCount, null );
+        writeln("extensions ", deviceExtensionCount);
+
         VkExtensionProperties[] availableDeviceExtensions = new VkExtensionProperties[ deviceExtensionCount ];
         vkEnumerateDeviceExtensionProperties( physicalDevice, null, &deviceExtensionCount, availableDeviceExtensions.ptr );
+
+        writeln("gfxdevice23 ", availableDeviceExtensions.length);
 
         for (int i = 0; i < availableDeviceExtensions.length; ++i)
         {
@@ -1172,7 +1176,7 @@ class GfxDeviceVulkan
 
         VkDeviceSize[ 3 ] offsets = [ 0, 0, 0 ];
         VkBuffer[ 3 ] buffers = [ vb.positionBuffer, vb.uvBuffer, vb.colorBuffer ];
-        vkCmdBindVertexBuffers( drawCmdBuffers[ currentBuffer ], 0, 3, buffers.ptr, offsets.ptr );
+        vkCmdBindVertexBuffers( drawCmdBuffers[ currentBuffer ], 0, buffers.length, buffers.ptr, offsets.ptr );
         vkCmdBindIndexBuffer( drawCmdBuffers[ currentBuffer ], vb.indexBuffer, 0, VK_INDEX_TYPE_UINT16 );
         vkCmdDrawIndexed( drawCmdBuffers[ currentBuffer ], (endIndex - startIndex) * 3, 1, startIndex * 3, 0, 0 );
     }

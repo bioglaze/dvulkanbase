@@ -26,6 +26,7 @@
     ],
     "dependencies": {
         "derelict-sdl2": ">=2.0.0",
-        "erupted": "~>1.6.9"
+        "erupted": "~>1.6.9",
+	"xlib-d": "~>0.1.1"
     }
 }

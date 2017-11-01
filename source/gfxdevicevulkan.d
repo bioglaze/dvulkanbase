@@ -4,6 +4,7 @@ import matrix4x4;
 import std.conv;
 import std.exception;
 import std.stdio;
+import X11.Xlib_xcb;
 
 extern(System) VkBool32 myDebugReportCallback(
     VkDebugReportFlagsEXT       flags,
@@ -136,7 +137,7 @@ class GfxDeviceVulkan
               VkStructureType.VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR,
               null,
               0,
-              cast(xcb_connection_t*)display,
+              XGetXCBConnection( cast(xcb_connection_t*)display ),
               window
             );
             enforceVk( vkCreateXcbSurfaceKHR( instance, &xcbInfo, null, &surface ) );
@@ -151,7 +152,6 @@ class GfxDeviceVulkan
             enforceVk( vkCreateWaylandSurfaceKHR( instance, &waylandInfo, null, &surface ) );*/
         }
 
-        writeln("gfxdevice0");
         createDevice( width, height );
         createDepthStencil( width, height );
         createSemaphores();
@@ -611,9 +611,7 @@ class GfxDeviceVulkan
 
         for (uint32_t i = 0; i < queueCount; ++i)
         {
-            writeln("testing1");
             vkGetPhysicalDeviceSurfaceSupportKHR( physicalDevice, i, surface, &supportsPresent[ i ] );
-            writeln("testing2");
         }
 
         float queuePriorities = 0;
@@ -627,12 +625,9 @@ class GfxDeviceVulkan
 
         uint32_t deviceExtensionCount;
         vkEnumerateDeviceExtensionProperties( physicalDevice, null, &deviceExtensionCount, null );
-        writeln("extensions ", deviceExtensionCount);
 
         VkExtensionProperties[] availableDeviceExtensions = new VkExtensionProperties[ deviceExtensionCount ];
         vkEnumerateDeviceExtensionProperties( physicalDevice, null, &deviceExtensionCount, availableDeviceExtensions.ptr );
-
-        writeln("gfxdevice23 ", availableDeviceExtensions.length);
 
         for (int i = 0; i < availableDeviceExtensions.length; ++i)
         {
@@ -714,7 +709,7 @@ class GfxDeviceVulkan
 
         VkExtent2D swapchainExtent;
         
-        if (surfCaps.currentExtent.width == 0)
+        if (surfCaps.currentExtent.width == cast(uint)-1)
         {
             swapchainExtent.width = width;
             swapchainExtent.height = height;
@@ -727,7 +722,6 @@ class GfxDeviceVulkan
         }
 
         uint32_t desiredNumberOfSwapchainImages = surfCaps.minImageCount + 1;
-        writeln("swap chain images: ", desiredNumberOfSwapchainImages);
 
         VkSurfaceTransformFlagsKHR preTransform;
 

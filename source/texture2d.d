@@ -31,9 +31,13 @@ class Texture2D
 {
     public void loadTGA( string path, VkDevice device, VkPhysicalDeviceMemoryProperties memoryProperties, VkCommandBuffer cmdBuffer, VkQueue graphicsQueue, VkCommandBuffer texCmdBuffer )
     {
-        writeln("loadTGA");
         auto f = File( path, "r" );
-            
+
+        if (!f.isOpen())
+        {
+            writeln( "Could not open ", path );
+        }
+        
         byte[ 1 ] idLength;
         f.rawRead( idLength );
 
@@ -268,9 +272,7 @@ class Texture2D
 
         memAllocInfo.allocationSize = memReqs.size;
         getMemoryType( memoryProperties, memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &memAllocInfo.memoryTypeIndex );
-
         enforceVk( vkAllocateMemory( device, &memAllocInfo, null, &stagingMemory ) );
-
         enforceVk( vkBindBufferMemory( device, stagingBuffer, stagingMemory, 0 ) );
 
         uint8_t[] data = new uint8_t[ width * height * 4 ];
@@ -399,7 +401,7 @@ class Texture2D
         viewInfo.pNext = null;
         viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
         viewInfo.format = imageCreateInfo.format;
-        viewInfo.components = VkComponentMapping( VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A );
+        //viewInfo.components = VkComponentMapping( VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A );
         viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         viewInfo.subresourceRange.baseMipLevel = 0;
         viewInfo.subresourceRange.baseArrayLayer = 0;

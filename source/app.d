@@ -20,8 +20,6 @@ void main()
     info.version_.patch = 5;
     auto success = SDL_GetWindowWMInfo( sdlWindow, &info );
 
-    writeln("jeejee1");
-
     version(Windows)
     {
         GfxDeviceVulkan gfxdevice = new GfxDeviceVulkan( width, height, info.info.win.window, null, 0 );
@@ -42,9 +40,7 @@ void main()
 
     Texture2D texture = new Texture2D();
     //texture.createCheckerboard( gfxdevice.device, gfxdevice.deviceMemoryProperties, gfxdevice.texCmdBuffer, gfxdevice.graphicsQueue, 256, 256 );
-    writeln("jeejee2");
     texture.loadTGA( "assets/glider.tga", gfxdevice.device, gfxdevice.deviceMemoryProperties, gfxdevice.texCmdBuffer, gfxdevice.graphicsQueue, gfxdevice.texCmdBuffer );
-    writeln("jeejee");
     int frame = 0;
     
     while (!quit)

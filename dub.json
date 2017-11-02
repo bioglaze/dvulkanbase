@@ -13,7 +13,12 @@
             "subConfigurations": {
                 "erupted": "dub-platform-xcb-derelict-loader"
             },
-            "libs": [ "X11", "Xi", "Xrandr", "pthread", "Xxf86vm","GL", "GLU", "Xinerama", "Xcursor" ]
+            "libs": [ "X11", "Xi", "Xrandr", "pthread", "Xxf86vm","GL", "GLU", "Xinerama", "Xcursor" ],
+            "dependencies": {
+                "derelict-sdl2": ">=2.0.0",
+                "erupted": "~>1.6.9",
+	              "xlib-d": "~>0.1.1"
+            }
         },
         {
             "name": "windows",
@@ -21,12 +26,11 @@
             "versions": ["VK_USE_PLATFORM_WIN32_KHR"],
             "subConfigurations": {
                 "erupted": "with-derelict-loader"
+            },
+            "dependencies": {
+                "derelict-sdl2": ">=2.0.0",
+                "erupted": "~>1.6.9",
             }
         }
-    ],
-    "dependencies": {
-        "derelict-sdl2": ">=2.0.0",
-        "erupted": "~>1.6.9",
-	"xlib-d": "~>0.1.1"
-    }
+    ]
 }

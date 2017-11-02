@@ -122,7 +122,7 @@ class Texture2D
 
         VkBufferCreateInfo bufferCreateInfo;
         bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        bufferCreateInfo.size = imageSize;
+        bufferCreateInfo.size = imageSize * 2;
         bufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
         bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         enforceVk( vkCreateBuffer( device, &bufferCreateInfo, null, &stagingBuffer ) );

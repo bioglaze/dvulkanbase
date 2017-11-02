@@ -4,7 +4,10 @@ import matrix4x4;
 import std.conv;
 import std.exception;
 import std.stdio;
-import X11.Xlib_xcb;
+version(linux)
+{
+    import X11.Xlib_xcb;
+}
 
 extern(System) VkBool32 myDebugReportCallback(
     VkDebugReportFlagsEXT       flags,

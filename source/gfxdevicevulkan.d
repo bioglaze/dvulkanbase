@@ -163,6 +163,7 @@ class GfxDeviceVulkan
         createDescriptorSetLayout();
         createDescriptorPool();
         createUniformBuffer( quad1Ubo );
+        createIndirectCommands();
         
         drawCmdBuffers = new VkCommandBuffer[ swapChainBuffers.length ];
         frameBuffers = new VkFramebuffer[ swapChainBuffers.length ];
@@ -455,7 +456,7 @@ class GfxDeviceVulkan
         allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
         allocInfo.pNext = null;
         allocInfo.allocationSize = memReqs.size;
-        getMemoryType( memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &allocInfo.memoryTypeIndex );
+        allocInfo.memoryTypeIndex = getMemoryType( memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT );
         enforceVk( vkAllocateMemory( device, &allocInfo, null, &ubo.memory ) );
 
         enforceVk( vkBindBufferMemory( device, ubo.ubo, ubo.memory, 0 ) );
@@ -642,11 +643,12 @@ class GfxDeviceVulkan
         }
 
         VkPhysicalDeviceFeatures enabledFeatures;
-        enabledFeatures.tessellationShader = true;
-        enabledFeatures.shaderTessellationAndGeometryPointSize = true;
-        enabledFeatures.shaderClipDistance = true;
-        enabledFeatures.shaderCullDistance = true;
-
+        enabledFeatures.tessellationShader = VK_TRUE;
+        enabledFeatures.shaderTessellationAndGeometryPointSize = VK_TRUE;
+        enabledFeatures.shaderClipDistance = VK_TRUE;
+        enabledFeatures.shaderCullDistance = VK_TRUE;
+        enabledFeatures.multiDrawIndirect = VK_TRUE;
+        
         VkDeviceCreateInfo deviceCreateInfo;
         deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
         deviceCreateInfo.pNext = null;
@@ -1003,7 +1005,7 @@ class GfxDeviceVulkan
         VkMemoryRequirements memReqs;
         vkGetImageMemoryRequirements( device, depthStencil.image, &memReqs );
         mem_alloc.allocationSize = memReqs.size;
-        getMemoryType( memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &mem_alloc.memoryTypeIndex );
+        mem_alloc.memoryTypeIndex = getMemoryType( memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );
         enforceVk( vkAllocateMemory( device, &mem_alloc, null, &depthStencil.mem ) );
 
         enforceVk( vkBindImageMemory( device, depthStencil.image, depthStencil.mem, 0 ) );
@@ -1015,7 +1017,7 @@ class GfxDeviceVulkan
         enforceVk( vkCreateImageView( device, &depthStencilView, null, &depthStencil.view ) );
     }
 
-    void getMemoryType( uint32_t typeBits, VkFlags properties, uint32_t* typeIndex )
+    uint32_t getMemoryType( uint32_t typeBits, VkFlags properties )
     {
         for (uint32_t i = 0; i < 32; ++i)
         {
@@ -1023,8 +1025,7 @@ class GfxDeviceVulkan
             {
                 if ((deviceMemoryProperties.memoryTypes[ i ].propertyFlags & properties) == properties)
                 {
-                    *typeIndex = i;
-                    return;
+                    return i;
                 }
             }
             
@@ -1099,7 +1100,7 @@ class GfxDeviceVulkan
 
         vkGetBufferMemoryRequirements( device, buffer, &memReqs );
         memAlloc.allocationSize = memReqs.size;
-        getMemoryType( memReqs.memoryTypeBits, memoryFlags, &memAlloc.memoryTypeIndex );
+        memAlloc.memoryTypeIndex = getMemoryType( memReqs.memoryTypeBits, memoryFlags );
         enforceVk( vkAllocateMemory( device, &memAlloc, null, &memory ) );
         enforceVk( vkBindBufferMemory( device, buffer, memory, 0 ) );
         assert( buffer != VK_NULL_HANDLE, "buffer is null" );
@@ -1176,8 +1177,58 @@ class GfxDeviceVulkan
         vkCmdBindVertexBuffers( drawCmdBuffers[ currentBuffer ], 0, buffers.length, buffers.ptr, offsets.ptr );
         vkCmdBindIndexBuffer( drawCmdBuffers[ currentBuffer ], vb.indexBuffer, 0, VK_INDEX_TYPE_UINT16 );
         vkCmdDrawIndexed( drawCmdBuffers[ currentBuffer ], (endIndex - startIndex) * 3, 1, startIndex * 3, 0, 0 );
+
+        //vkCmdDrawIndexedIndirect( drawCmdBuffers[ currentBuffer ], indirectCommandsBuffer.buffer, 0, indirectDrawCount, VkDrawIndexedIndirectCommand.sizeof );
     }
 
+    private void createIndirectCommands()
+    {
+        indirectCommands = new VkDrawIndexedIndirectCommand[ 1 ];
+
+        int instanceCount = 0;
+        int indexCount = 4;
+        
+        indirectCommands[ 0 ].instanceCount = instanceCount;
+        indirectCommands[ 0 ].firstInstance = 0 * instanceCount;
+        indirectCommands[ 0 ].firstIndex = 0;
+        indirectCommands[ 0 ].indexCount = indexCount;
+
+        VkBuffer stagingBuffer;
+        VkBufferCreateInfo bufferInfo;
+        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bufferInfo.size = indirectCommands.length * VkDrawIndexedIndirectCommand.sizeof;
+        bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        enforceVk( vkCreateBuffer( device, &bufferInfo, null, &stagingBuffer ) );
+
+        VkDeviceMemory stagingMemory;
+        VkMemoryRequirements memReqs;
+        VkMemoryAllocateInfo memAlloc;
+        memAlloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+
+        vkGetBufferMemoryRequirements( device, stagingBuffer, &memReqs );
+        memAlloc.allocationSize = memReqs.size;
+        memAlloc.memoryTypeIndex = getMemoryType( memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT );
+        enforceVk( vkAllocateMemory( device, &memAlloc, null, &stagingMemory ) );
+        enforceVk( vkBindBufferMemory( device, stagingBuffer, stagingMemory, 0 ) );
+
+        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bufferInfo.size = indirectCommands.length * VkDrawIndexedIndirectCommand.sizeof;
+        bufferInfo.usage = VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        enforceVk( vkCreateBuffer( device, &bufferInfo, null, &indirectBuffer ) );
+
+        vkGetBufferMemoryRequirements( device, indirectBuffer, &memReqs );
+        memAlloc.allocationSize = memReqs.size;
+        memAlloc.memoryTypeIndex = getMemoryType( memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT );
+        enforceVk( vkAllocateMemory( device, &memAlloc, null, &indirectMemory ) );
+        enforceVk( vkBindBufferMemory( device, indirectBuffer, indirectMemory, 0 ) );
+
+        void* mappedStagingMemory;
+        enforceVk( vkMapMemory( device, stagingMemory, 0, bufferInfo.size, 0, &mappedStagingMemory ) );
+        memcpy( mappedStagingMemory, indirectCommands.ptr, bufferInfo.size );
+        
+        copyBuffer( stagingBuffer, indirectBuffer, cast(int)bufferInfo.size );
+    }
+    
     private void createPso( VertexBuffer vb, Shader shader, BlendMode blendMode, DepthFunc depthFunc, CullMode cullMode, uint64_t psoHash )
     {
         VkPipelineInputAssemblyStateCreateInfo inputAssemblyState;
@@ -1410,6 +1461,9 @@ class GfxDeviceVulkan
     VkDescriptorPool descriptorPool;
     VkSampler samplerNearestRepeat;
     VkPipelineLayout pipelineLayout;
+    VkDrawIndexedIndirectCommand[] indirectCommands;
+    VkBuffer indirectBuffer;
+    VkDeviceMemory indirectMemory;
     int queueNodeIndex;
     uint currentBuffer;  
     SwapChainBuffer[] swapChainBuffers;

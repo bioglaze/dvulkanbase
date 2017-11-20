@@ -51,6 +51,12 @@ struct UniformBuffer
     float[ 4 ] tintColor;
 }
 
+struct InstanceData
+{
+    float[ 3 ] pos;
+    float scale;
+}
+
 class GfxDeviceVulkan
 {
     this( int width, int height, void* windowHandleOrWindow, void* display, uint window )
@@ -164,6 +170,7 @@ class GfxDeviceVulkan
         createDescriptorPool();
         createUniformBuffer( quad1Ubo );
         createIndirectCommands();
+        createInstanceData();
         
         drawCmdBuffers = new VkCommandBuffer[ swapChainBuffers.length ];
         frameBuffers = new VkFramebuffer[ swapChainBuffers.length ];
@@ -1177,10 +1184,38 @@ class GfxDeviceVulkan
         vkCmdBindVertexBuffers( drawCmdBuffers[ currentBuffer ], 0, buffers.length, buffers.ptr, offsets.ptr );
         vkCmdBindIndexBuffer( drawCmdBuffers[ currentBuffer ], vb.indexBuffer, 0, VK_INDEX_TYPE_UINT16 );
         vkCmdDrawIndexed( drawCmdBuffers[ currentBuffer ], (endIndex - startIndex) * 3, 1, startIndex * 3, 0, 0 );
-
-        //vkCmdDrawIndexedIndirect( drawCmdBuffers[ currentBuffer ], indirectCommandsBuffer.buffer, 0, indirectDrawCount, VkDrawIndexedIndirectCommand.sizeof );
     }
 
+    public void draw2( VertexBuffer vb, int startIndex, int endIndex, Shader aShader, BlendMode blendMode, DepthFunc depthFunc, CullMode cullMode, UniformBuffer unif, VkImageView view, VkSampler sampler )
+    {
+        memcpy( quad1Ubo.data, &unif, unif.sizeof );
+
+        uint64_t psoHash = getPsoHash( vb, aShader, blendMode, depthFunc, cullMode );
+
+        if (psoHash !in psoCache)
+        {
+            createPso( vertexBuffer, shader, blendMode, depthFunc, cullMode, psoHash );
+        }
+
+        updateDescriptorSet( view, sampler );
+
+        vkCmdBindDescriptorSets( drawCmdBuffers[ currentBuffer ], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[ descriptorSetIndex ], 0, null );
+        vkCmdBindPipeline( drawCmdBuffers[ currentBuffer ], VK_PIPELINE_BIND_POINT_GRAPHICS, psoCache[ psoHash ] );
+
+        VkDeviceSize[ 3 ] offsets = [ 0, 0, 0 ];
+        VkBuffer[ 3 ] buffers = [ vb.positionBuffer, vb.uvBuffer, vb.colorBuffer ];
+        // Vertex buffer
+        vkCmdBindVertexBuffers( drawCmdBuffers[ currentBuffer ], 0, buffers.length, buffers.ptr, offsets.ptr );
+        // Instance data buffer
+        VkDeviceSize[ 1 ] instanceOffsets = [ 0 ];
+        vkCmdBindVertexBuffers( drawCmdBuffers[ currentBuffer ], 1, 1, &instanceBuffer, instanceOffsets.ptr );
+        
+        vkCmdBindIndexBuffer( drawCmdBuffers[ currentBuffer ], vb.indexBuffer, 0, VK_INDEX_TYPE_UINT16 );
+
+        int indirectDrawCount = 1;
+        vkCmdDrawIndexedIndirect( drawCmdBuffers[ currentBuffer ], indirectBuffer, 0, indirectDrawCount, VkDrawIndexedIndirectCommand.sizeof );
+    }
+    
     private void createIndirectCommands()
     {
         indirectCommands = new VkDrawIndexedIndirectCommand[ 1 ];
@@ -1227,6 +1262,49 @@ class GfxDeviceVulkan
         memcpy( mappedStagingMemory, indirectCommands.ptr, bufferInfo.size );
         
         copyBuffer( stagingBuffer, indirectBuffer, cast(int)bufferInfo.size );
+    }
+
+    private void createInstanceData()
+    {
+        int instanceDataCount = 1;
+        
+        VkBuffer stagingBuffer;
+        VkBufferCreateInfo bufferInfo;
+        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bufferInfo.size = instanceDataCount * InstanceData.sizeof;
+        bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        enforceVk( vkCreateBuffer( device, &bufferInfo, null, &stagingBuffer ) );
+
+        VkDeviceMemory stagingMemory;
+        VkMemoryRequirements memReqs;
+        VkMemoryAllocateInfo memAlloc;
+        memAlloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+
+        vkGetBufferMemoryRequirements( device, stagingBuffer, &memReqs );
+        memAlloc.allocationSize = memReqs.size;
+        memAlloc.memoryTypeIndex = getMemoryType( memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT );
+        enforceVk( vkAllocateMemory( device, &memAlloc, null, &stagingMemory ) );
+        enforceVk( vkBindBufferMemory( device, stagingBuffer, stagingMemory, 0 ) );
+
+        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bufferInfo.size = instanceDataCount * InstanceData.sizeof;
+        bufferInfo.usage = VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        enforceVk( vkCreateBuffer( device, &bufferInfo, null, &instanceBuffer ) );
+
+        vkGetBufferMemoryRequirements( device, instanceBuffer, &memReqs );
+        memAlloc.allocationSize = memReqs.size;
+        memAlloc.memoryTypeIndex = getMemoryType( memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT );
+        enforceVk( vkAllocateMemory( device, &memAlloc, null, &instanceMemory ) );
+        enforceVk( vkBindBufferMemory( device, instanceBuffer, instanceMemory, 0 ) );
+
+        InstanceData instanceData;
+        
+        void* mappedStagingMemory;
+        enforceVk( vkMapMemory( device, stagingMemory, 0, bufferInfo.size, 0, &mappedStagingMemory ) );
+        memcpy( mappedStagingMemory, &instanceData, bufferInfo.size );
+        
+        copyBuffer( stagingBuffer, instanceBuffer, cast(int)bufferInfo.size );
+
     }
     
     private void createPso( VertexBuffer vb, Shader shader, BlendMode blendMode, DepthFunc depthFunc, CullMode cullMode, uint64_t psoHash )
@@ -1464,6 +1542,9 @@ class GfxDeviceVulkan
     VkDrawIndexedIndirectCommand[] indirectCommands;
     VkBuffer indirectBuffer;
     VkDeviceMemory indirectMemory;
+    VkBuffer instanceBuffer;
+    VkDeviceMemory instanceMemory;
+    
     int queueNodeIndex;
     uint currentBuffer;  
     SwapChainBuffer[] swapChainBuffers;

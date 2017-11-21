@@ -54,7 +54,8 @@ struct UniformBuffer
 struct InstanceData
 {
     float[ 3 ] pos;
-    float scale;
+    float[ 2 ] uv;
+    float[ 4 ] color;
 }
 
 class GfxDeviceVulkan
@@ -1253,7 +1254,7 @@ class GfxDeviceVulkan
 
         vkGetBufferMemoryRequirements( device, indirectBuffer, &memReqs );
         memAlloc.allocationSize = memReqs.size;
-        memAlloc.memoryTypeIndex = getMemoryType( memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT );
+        memAlloc.memoryTypeIndex = getMemoryType( memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );
         enforceVk( vkAllocateMemory( device, &memAlloc, null, &indirectMemory ) );
         enforceVk( vkBindBufferMemory( device, indirectBuffer, indirectMemory, 0 ) );
 
@@ -1288,23 +1289,25 @@ class GfxDeviceVulkan
 
         bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
         bufferInfo.size = instanceDataCount * InstanceData.sizeof;
-        bufferInfo.usage = VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         enforceVk( vkCreateBuffer( device, &bufferInfo, null, &instanceBuffer ) );
 
         vkGetBufferMemoryRequirements( device, instanceBuffer, &memReqs );
         memAlloc.allocationSize = memReqs.size;
-        memAlloc.memoryTypeIndex = getMemoryType( memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT );
+        memAlloc.memoryTypeIndex = getMemoryType( memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );
         enforceVk( vkAllocateMemory( device, &memAlloc, null, &instanceMemory ) );
         enforceVk( vkBindBufferMemory( device, instanceBuffer, instanceMemory, 0 ) );
 
         InstanceData instanceData;
+        instanceData.pos = [ 0, 0, 0 ];
+        instanceData.uv = [ 0, 0 ];
+        instanceData.color = [ 1, 1, 1, 1 ];
         
         void* mappedStagingMemory;
         enforceVk( vkMapMemory( device, stagingMemory, 0, bufferInfo.size, 0, &mappedStagingMemory ) );
         memcpy( mappedStagingMemory, &instanceData, bufferInfo.size );
         
         copyBuffer( stagingBuffer, instanceBuffer, cast(int)bufferInfo.size );
-
     }
     
     private void createPso( VertexBuffer vb, Shader shader, BlendMode blendMode, DepthFunc depthFunc, CullMode cullMode, uint64_t psoHash )
@@ -1690,6 +1693,10 @@ class GfxDeviceVulkan
             bindingDescriptions[ 2 ].stride = 4 * float.sizeof;
             bindingDescriptions[ 2 ].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
+            //bindingDescriptions[ 3 ].binding = 3;
+            //bindingDescriptions[ 3 ].stride = InstanceData.sizeof;
+            //bindingDescriptions[ 3 ].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
+
             attributeDescriptions = new VkVertexInputAttributeDescription[ 3 ];
 
             // Location 0 : Position
@@ -1709,6 +1716,24 @@ class GfxDeviceVulkan
             attributeDescriptions[ 2 ].location = COLOR_INDEX;
             attributeDescriptions[ 2 ].format = VK_FORMAT_R32G32B32A32_SFLOAT;
             attributeDescriptions[ 2 ].offset = 0;
+
+            // Location 3 : Instanced position
+            /*attributeDescriptions[ 3 ].binding = 3;
+            attributeDescriptions[ 3 ].location = 3;
+            attributeDescriptions[ 3 ].format = VK_FORMAT_R32G32B32_SFLOAT;
+            attributeDescriptions[ 3 ].offset = 0;
+
+            // Location 3 : Instanced texcoord
+            attributeDescriptions[ 4 ].binding = 4;
+            attributeDescriptions[ 4 ].location = 4;
+            attributeDescriptions[ 4 ].format = VK_FORMAT_R32G32_SFLOAT;
+            attributeDescriptions[ 4 ].offset = 0;
+
+            // Location 3 : Instanced color
+            attributeDescriptions[ 5 ].binding = 5;
+            attributeDescriptions[ 5 ].location = 5;
+            attributeDescriptions[ 5 ].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+            attributeDescriptions[ 5 ].offset = 0;*/
 
             inputState.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
             inputState.pNext = null;

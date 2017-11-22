@@ -230,7 +230,6 @@ class GfxDeviceVulkan
 
         vertexBuffer.generate( quadVertices, quadIndices, this );
     
-        //shader.load( "assets/shader.vert.spv", "assets/shader.frag.spv", device );
         shader.load( "assets/shader_vert_hlsl.spv", "assets/shader_frag_hlsl.spv", device );
     }
 
@@ -448,7 +447,7 @@ class GfxDeviceVulkan
 
     private void createUniformBuffer( ref Ubo ubo )
     {
-        const VkDeviceSize uboSize = 256;// 16 * 4;
+        const VkDeviceSize uboSize = 256;
 
         VkBufferCreateInfo bufferInfo;
         bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -533,8 +532,6 @@ class GfxDeviceVulkan
         presentInfo.pWaitSemaphores = &renderCompleteSemaphore;
         presentInfo.waitSemaphoreCount = 1;
         enforceVk( vkQueuePresentKHR( graphicsQueue, &presentInfo ) );
-
-        //enforceVk( vkQueueWaitIdle( graphicsQueue ) );
     }
 
     private void beginRenderPass( int windowWidth, int windowHeight )
@@ -730,8 +727,6 @@ class GfxDeviceVulkan
         else
         {
             swapchainExtent = surfCaps.currentExtent;
-            //windowWidth = surfCaps.currentExtent.width;
-            //windowHeight = surfCaps.currentExtent.height;
         }
 
         uint32_t desiredNumberOfSwapchainImages = surfCaps.minImageCount + 1;
@@ -1209,7 +1204,7 @@ class GfxDeviceVulkan
         vkCmdBindVertexBuffers( drawCmdBuffers[ currentBuffer ], 0, buffers.length, buffers.ptr, offsets.ptr );
         // Instance data buffer
         VkDeviceSize[ 1 ] instanceOffsets = [ 0 ];
-        vkCmdBindVertexBuffers( drawCmdBuffers[ currentBuffer ], 1, 1, &instanceBuffer, instanceOffsets.ptr );
+        vkCmdBindVertexBuffers( drawCmdBuffers[ currentBuffer ], 3, 1, &instanceBuffer, instanceOffsets.ptr );
         
         vkCmdBindIndexBuffer( drawCmdBuffers[ currentBuffer ], vb.indexBuffer, 0, VK_INDEX_TYPE_UINT16 );
 
@@ -1680,7 +1675,7 @@ class GfxDeviceVulkan
             const int TEXCOORD_INDEX = 1;
             const int COLOR_INDEX = 2;
             
-            bindingDescriptions = new VkVertexInputBindingDescription[ 3 ];
+            bindingDescriptions = new VkVertexInputBindingDescription[ 4 ];
             bindingDescriptions[ 0 ].binding = 0;
             bindingDescriptions[ 0 ].stride = 3 * float.sizeof;
             bindingDescriptions[ 0 ].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
@@ -1693,11 +1688,11 @@ class GfxDeviceVulkan
             bindingDescriptions[ 2 ].stride = 4 * float.sizeof;
             bindingDescriptions[ 2 ].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-            //bindingDescriptions[ 3 ].binding = 3;
-            //bindingDescriptions[ 3 ].stride = InstanceData.sizeof;
-            //bindingDescriptions[ 3 ].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
+            bindingDescriptions[ 3 ].binding = 3;
+            bindingDescriptions[ 3 ].stride = InstanceData.sizeof;
+            bindingDescriptions[ 3 ].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
 
-            attributeDescriptions = new VkVertexInputAttributeDescription[ 3 ];
+            attributeDescriptions = new VkVertexInputAttributeDescription[ 6 ];
 
             // Location 0 : Position
             attributeDescriptions[ 0 ].binding = 0;
@@ -1718,22 +1713,22 @@ class GfxDeviceVulkan
             attributeDescriptions[ 2 ].offset = 0;
 
             // Location 3 : Instanced position
-            /*attributeDescriptions[ 3 ].binding = 3;
+            attributeDescriptions[ 3 ].binding = 3;
             attributeDescriptions[ 3 ].location = 3;
             attributeDescriptions[ 3 ].format = VK_FORMAT_R32G32B32_SFLOAT;
             attributeDescriptions[ 3 ].offset = 0;
 
-            // Location 3 : Instanced texcoord
-            attributeDescriptions[ 4 ].binding = 4;
+            // Location 4 : Instanced texcoord
+            attributeDescriptions[ 4 ].binding = 3;
             attributeDescriptions[ 4 ].location = 4;
             attributeDescriptions[ 4 ].format = VK_FORMAT_R32G32_SFLOAT;
             attributeDescriptions[ 4 ].offset = 0;
 
-            // Location 3 : Instanced color
-            attributeDescriptions[ 5 ].binding = 5;
+            // Location 5 : Instanced color
+            attributeDescriptions[ 5 ].binding = 3;
             attributeDescriptions[ 5 ].location = 5;
             attributeDescriptions[ 5 ].format = VK_FORMAT_R32G32B32A32_SFLOAT;
-            attributeDescriptions[ 5 ].offset = 0;*/
+            attributeDescriptions[ 5 ].offset = 0;
 
             inputState.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
             inputState.pNext = null;

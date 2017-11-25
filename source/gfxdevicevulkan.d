@@ -60,6 +60,8 @@ struct InstanceData
 
 class GfxDeviceVulkan
 {
+    private bool isDebug = true;
+    
     this( int width, int height, void* windowHandleOrWindow, void* display, uint window )
     {
         DerelictErupted.load();
@@ -102,28 +104,31 @@ class GfxDeviceVulkan
         VkInstanceCreateInfo createinfo;
         createinfo.sType = VkStructureType.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
         createinfo.pApplicationInfo = &appinfo;
-        createinfo.enabledExtensionCount = cast(uint)extensionNames.length;
+        createinfo.enabledExtensionCount = isDebug ? cast(uint)extensionNames.length : 2;
         createinfo.ppEnabledExtensionNames = extensionNames.ptr;
-        createinfo.enabledLayerCount = validationLayers.length;
-        createinfo.ppEnabledLayerNames = validationLayers.ptr;
+        createinfo.enabledLayerCount = isDebug ? validationLayers.length : 0;
+        createinfo.ppEnabledLayerNames = isDebug ? validationLayers.ptr : null;
 
         enforceVk( vkCreateInstance( &createinfo, null, &instance ) );
 
         loadInstanceLevelFunctions( instance );
 
-        auto debugcallbackCreateInfo = VkDebugReportCallbackCreateInfoEXT(
-           VkStructureType.VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT,
-           null,
-           VkDebugReportFlagBitsEXT.VK_DEBUG_REPORT_ERROR_BIT_EXT |
-           VkDebugReportFlagBitsEXT.VK_DEBUG_REPORT_WARNING_BIT_EXT |
-           VkDebugReportFlagBitsEXT.VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT,
-           &myDebugReportCallback,
-           null
-        );
+        if (isDebug)
+        {
+            auto debugcallbackCreateInfo = VkDebugReportCallbackCreateInfoEXT(
+              VkStructureType.VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT,
+              null,
+              VkDebugReportFlagBitsEXT.VK_DEBUG_REPORT_ERROR_BIT_EXT |
+              VkDebugReportFlagBitsEXT.VK_DEBUG_REPORT_WARNING_BIT_EXT |
+              VkDebugReportFlagBitsEXT.VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT,
+              &myDebugReportCallback,
+              null
+            );
         
-        VkDebugReportCallbackEXT callback;
-        enforceVk( vkCreateDebugReportCallbackEXT( instance, &debugcallbackCreateInfo, null, &callback ) );
-
+            VkDebugReportCallbackEXT callback;
+            enforceVk( vkCreateDebugReportCallbackEXT( instance, &debugcallbackCreateInfo, null, &callback ) );
+        }
+        
         version(Windows)
         {
             VkWin32SurfaceCreateInfoKHR surfaceCreateInfo;
@@ -1177,29 +1182,6 @@ class GfxDeviceVulkan
 
         VkDeviceSize[ 3 ] offsets = [ 0, 0, 0 ];
         VkBuffer[ 3 ] buffers = [ vb.positionBuffer, vb.uvBuffer, vb.colorBuffer ];
-        vkCmdBindVertexBuffers( drawCmdBuffers[ currentBuffer ], 0, buffers.length, buffers.ptr, offsets.ptr );
-        vkCmdBindIndexBuffer( drawCmdBuffers[ currentBuffer ], vb.indexBuffer, 0, VK_INDEX_TYPE_UINT16 );
-        vkCmdDrawIndexed( drawCmdBuffers[ currentBuffer ], (endIndex - startIndex) * 3, 1, startIndex * 3, 0, 0 );
-    }
-
-    public void draw2( VertexBuffer vb, int startIndex, int endIndex, Shader aShader, BlendMode blendMode, DepthFunc depthFunc, CullMode cullMode, UniformBuffer unif, VkImageView view, VkSampler sampler )
-    {
-        memcpy( quad1Ubo.data, &unif, unif.sizeof );
-
-        uint64_t psoHash = getPsoHash( vb, aShader, blendMode, depthFunc, cullMode );
-
-        if (psoHash !in psoCache)
-        {
-            createPso( vertexBuffer, shader, blendMode, depthFunc, cullMode, psoHash );
-        }
-
-        updateDescriptorSet( view, sampler );
-
-        vkCmdBindDescriptorSets( drawCmdBuffers[ currentBuffer ], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[ descriptorSetIndex ], 0, null );
-        vkCmdBindPipeline( drawCmdBuffers[ currentBuffer ], VK_PIPELINE_BIND_POINT_GRAPHICS, psoCache[ psoHash ] );
-
-        VkDeviceSize[ 3 ] offsets = [ 0, 0, 0 ];
-        VkBuffer[ 3 ] buffers = [ vb.positionBuffer, vb.uvBuffer, vb.colorBuffer ];
         // Vertex buffer
         vkCmdBindVertexBuffers( drawCmdBuffers[ currentBuffer ], 0, buffers.length, buffers.ptr, offsets.ptr );
         // Instance data buffer
@@ -1216,8 +1198,8 @@ class GfxDeviceVulkan
     {
         indirectCommands = new VkDrawIndexedIndirectCommand[ 1 ];
 
-        int instanceCount = 0;
-        int indexCount = 4;
+        int instanceCount = 1;
+        int indexCount = 6;
         
         indirectCommands[ 0 ].instanceCount = instanceCount;
         indirectCommands[ 0 ].firstInstance = 0 * instanceCount;

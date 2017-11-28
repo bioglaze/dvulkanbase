@@ -15,8 +15,8 @@ extern(System) VkBool32 myDebugReportCallback(
     uint64_t                    object,
     size_t                      location,
     int32_t                     messageCode,
-    const (char)*                 pLayerPrefix,
-    const (char)*                 pMessage,
+    const (char)*               pLayerPrefix,
+    const (char)*               pMessage,
     void*                       pUserData) nothrow @nogc
 {
     //printf( "ObjectType: %i  \n", objectType );
@@ -139,15 +139,6 @@ class GfxDeviceVulkan
         }
         version(linux)
         {
-            /*auto xlibInfo = VkXlibSurfaceCreateInfoKHR(
-              VkStructureType.VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR,
-              null,
-              0,
-              display,
-              windowHandleOrWindow
-            );
-            enforceVk( vkCreateXlibSurfaceKHR( instance, &xlibInfo, null, &surface ) );*/
-
             auto xcbInfo = VkXcbSurfaceCreateInfoKHR(
               VkStructureType.VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR,
               null,
@@ -829,7 +820,7 @@ class GfxDeviceVulkan
     }
 
     void setImageLayout( VkCommandBuffer cmdbuffer, VkImage image, VkImageAspectFlags aspectMask, VkImageLayout oldImageLayout,
-        VkImageLayout newImageLayout, uint layerCount, uint mipLevel, uint mipLevelCount )
+                         VkImageLayout newImageLayout, uint layerCount, uint mipLevel, uint mipLevelCount )
     {
         VkImageMemoryBarrier imageMemoryBarrier;
         imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;

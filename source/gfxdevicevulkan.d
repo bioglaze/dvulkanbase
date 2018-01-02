@@ -276,7 +276,7 @@ class GfxDeviceVulkan
 
     void createDescriptorPool()
     {
-        const int count = 20;
+        const int count = 2;
         VkDescriptorPoolSize[ 3 ] typeCounts;
         typeCounts[ 0 ].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         typeCounts[ 0 ].descriptorCount = count;
@@ -528,6 +528,8 @@ class GfxDeviceVulkan
         presentInfo.pWaitSemaphores = &renderCompleteSemaphore;
         presentInfo.waitSemaphoreCount = 1;
         enforceVk( vkQueuePresentKHR( graphicsQueue, &presentInfo ) );
+
+        ++currentFrame;
     }
 
     private void beginRenderPass( int windowWidth, int windowHeight )
@@ -1117,7 +1119,7 @@ class GfxDeviceVulkan
   
     private void updateDescriptorSet( VkImageView view, VkSampler sampler )
     {
-        descriptorSetIndex = (descriptorSetIndex + 1) % cast(int)descriptorSets.length;
+        descriptorSetIndex = currentFrame % 2;
 
         // Binding 0 : Uniform buffer
         VkWriteDescriptorSet uboSet;
@@ -1517,7 +1519,8 @@ class GfxDeviceVulkan
     VkDeviceMemory instanceMemory;
     
     int queueNodeIndex;
-    uint currentBuffer;  
+    uint currentBuffer;
+    uint currentFrame;
     SwapChainBuffer[] swapChainBuffers;
     DepthStencil depthStencil;
 

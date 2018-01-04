@@ -49,6 +49,7 @@ struct UniformBuffer
 {
     Matrix4x4 modelToClip;
     float[ 4 ] tintColor;
+    int textureIndex;
 }
 
 struct InstanceData
@@ -243,7 +244,7 @@ class GfxDeviceVulkan
         VkDescriptorSetLayoutBinding layoutBindingImage;
         layoutBindingImage.binding = 1;
         layoutBindingImage.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-        layoutBindingImage.descriptorCount = 1;
+        layoutBindingImage.descriptorCount = 3;
         layoutBindingImage.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
         layoutBindingImage.pImmutableSamplers = null;
 
@@ -281,7 +282,7 @@ class GfxDeviceVulkan
         typeCounts[ 0 ].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         typeCounts[ 0 ].descriptorCount = count;
         typeCounts[ 1 ].type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-        typeCounts[ 1 ].descriptorCount = count;
+        typeCounts[ 1 ].descriptorCount = 3 * 3;
         typeCounts[ 2 ].type = VK_DESCRIPTOR_TYPE_SAMPLER;
         typeCounts[ 2 ].descriptorCount = count;
 
@@ -1117,7 +1118,7 @@ class GfxDeviceVulkan
         return result;
     }
   
-    private void updateDescriptorSet( VkImageView view, VkSampler sampler )
+    public void updateDescriptorSet( VkSampler sampler, VkImageView view1, VkImageView view2, VkImageView view3 )
     {
         descriptorSetIndex = currentFrame % 2;
 
@@ -1133,15 +1134,18 @@ class GfxDeviceVulkan
         // Binding 1 : Image
         VkDescriptorImageInfo samplerDesc;
         samplerDesc.sampler = sampler;
-        samplerDesc.imageView = view;
+        samplerDesc.imageView = view1;
         samplerDesc.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
+        VkDescriptorImageInfo[ 3 ] samplerDescs = [ samplerDesc, samplerDesc, samplerDesc ];
+        samplerDescs[ 1 ].imageView = view2;
+        samplerDescs[ 2 ].imageView = view3;
+        
         VkWriteDescriptorSet imageSet;
         imageSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         imageSet.dstSet = descriptorSets[ descriptorSetIndex ];
-        imageSet.descriptorCount = 1;
+        imageSet.descriptorCount = samplerDescs.length;
         imageSet.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-        imageSet.pImageInfo = &samplerDesc;
+        imageSet.pImageInfo = samplerDescs.ptr;
         imageSet.dstBinding = 1;
 
         // Binding 2: Sampler
@@ -1157,7 +1161,7 @@ class GfxDeviceVulkan
         vkUpdateDescriptorSets( device, sets.length, sets.ptr, 0, null );
     }
 
-    public void draw( VertexBuffer vb, int startIndex, int endIndex, Shader aShader, BlendMode blendMode, DepthFunc depthFunc, CullMode cullMode, UniformBuffer unif, VkImageView view, VkSampler sampler )
+    public void draw( VertexBuffer vb, int startIndex, int endIndex, Shader aShader, BlendMode blendMode, DepthFunc depthFunc, CullMode cullMode, UniformBuffer unif )
     {
         memcpy( quad1Ubo.data, &unif, unif.sizeof );
 
@@ -1167,8 +1171,6 @@ class GfxDeviceVulkan
         {
             createPso( vertexBuffer, shader, blendMode, depthFunc, cullMode, psoHash );
         }
-
-        updateDescriptorSet( view, sampler );
 
         vkCmdBindDescriptorSets( drawCmdBuffers[ currentBuffer ], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[ descriptorSetIndex ], 0, null );
         vkCmdBindPipeline( drawCmdBuffers[ currentBuffer ], VK_PIPELINE_BIND_POINT_GRAPHICS, psoCache[ psoHash ] );

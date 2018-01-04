@@ -48,6 +48,8 @@ void main()
     textureBlue.loadTGA( "assets/glider_blue.tga", gfxdevice.device, gfxdevice.deviceMemoryProperties, gfxdevice.texCmdBuffer, gfxdevice.graphicsQueue, gfxdevice.texCmdBuffer );
 
     int frame = 0;
+
+    gfxdevice.updateDescriptorSet( gfxdevice.samplerNearestRepeat, textureRed.getView(), textureGreen.getView(), textureBlue.getView() );
     
     while (!quit)
     {
@@ -67,9 +69,10 @@ void main()
 
         ubo.tintColor = ((frame % 10) < 5) ? [ 1, 0, 0, 1 ] : [ 0, 1, 0, 1 ];
         gfxdevice.beginFrame( width, height );
-        gfxdevice.draw( gfxdevice.vertexBuffer, 0, 2, gfxdevice.shader, BlendMode.Off, DepthFunc.NoneWriteOff, CullMode.Off, ubo, textureRed.getView(), gfxdevice.samplerNearestRepeat );
-        //gfxdevice.draw( gfxdevice.vertexBuffer, 0, 2, gfxdevice.shader, BlendMode.Off, DepthFunc.NoneWriteOff, CullMode.Off, ubo, textureGreen.getView(), gfxdevice.samplerNearestRepeat );
-        //gfxdevice.draw( gfxdevice.vertexBuffer, 0, 2, gfxdevice.shader, BlendMode.Off, DepthFunc.NoneWriteOff, CullMode.Off, ubo, textureBlue.getView(), gfxdevice.samplerNearestRepeat );
+
+        ubo.textureIndex = 2;
+        gfxdevice.draw( gfxdevice.vertexBuffer, 0, 2, gfxdevice.shader, BlendMode.Off, DepthFunc.NoneWriteOff, CullMode.Off, ubo );
+
         gfxdevice.endFrame();
 
         ++frame;

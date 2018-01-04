@@ -15,14 +15,13 @@ layout(set=0, binding=0) cbuffer Scene
 {
     float4x4 localToClip;
     float4 tintColor;
+    int textureIndex;
 };
 
-layout(set=0, binding=1) Texture2D<float4> tex : register(t0);
+layout(set=0, binding=1) Texture2D<float4> tex[ 3 ] : register(t0);
 layout(set=0, binding=2) SamplerState sLinear : register(s0);
 
 float4 main( VSOutput vsOut ) : SV_Target
 {
-    //return tintColor;
-    //return float4( 1, 0, 0, 1 );
-    return tex.SampleLevel( sLinear, vsOut.uv, 0 );// * vsOut.color;
+    return tex[ textureIndex ].SampleLevel( sLinear, vsOut.uv, 0 );
 };

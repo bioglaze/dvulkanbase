@@ -49,6 +49,7 @@ struct UniformBuffer
 {
     Matrix4x4 modelToClip;
     float[ 4 ] tintColor;
+    float[ 4 ] positionOffset;
     int textureIndex;
 }
 

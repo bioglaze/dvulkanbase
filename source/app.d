@@ -71,15 +71,8 @@ void main()
 
         gfxdevice.beginFrame( width, height );
 
-        ubo.positionOffset[ 0 ] = 50.0f;
-        ubo.positionOffset[ 1 ] = 0.0f;
         ubo.textureIndex = 2;
-        gfxdevice.draw( gfxdevice.vertexBuffer, 0, 2, gfxdevice.shader, BlendMode.Off, DepthFunc.NoneWriteOff, CullMode.Off, ubo );
-
-        ubo.positionOffset[ 0 ] = 0.0f;
-        ubo.positionOffset[ 1 ] = 0.0f;
-        ubo.textureIndex = 1;
-        gfxdevice.draw( gfxdevice.vertexBuffer, 0, 2, gfxdevice.shader, BlendMode.Off, DepthFunc.NoneWriteOff, CullMode.Off, ubo );
+        gfxdevice.draw( gfxdevice.vertexBuffer, gfxdevice.shader, BlendMode.Off, DepthFunc.NoneWriteOff, CullMode.Off, ubo );
 
         gfxdevice.endFrame();
 

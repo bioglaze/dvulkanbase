@@ -49,7 +49,6 @@ struct UniformBuffer
 {
     Matrix4x4 modelToClip;
     float[ 4 ] tintColor;
-    float[ 4 ] positionOffset;
     int textureIndex;
 }
 
@@ -1162,7 +1161,7 @@ class GfxDeviceVulkan
         vkUpdateDescriptorSets( device, sets.length, sets.ptr, 0, null );
     }
 
-    public void draw( VertexBuffer vb, int startIndex, int endIndex, Shader aShader, BlendMode blendMode, DepthFunc depthFunc, CullMode cullMode, UniformBuffer unif )
+    public void draw( VertexBuffer vb, Shader aShader, BlendMode blendMode, DepthFunc depthFunc, CullMode cullMode, UniformBuffer unif )
     {
         memcpy( quad1Ubo.data, &unif, unif.sizeof );
 
@@ -1194,7 +1193,7 @@ class GfxDeviceVulkan
     {
         indirectCommands = new VkDrawIndexedIndirectCommand[ 1 ];
 
-        int instanceCount = 1;
+        int instanceCount = 2;
         int indexCount = 6;
         
         indirectCommands[ 0 ].instanceCount = instanceCount;
@@ -1240,7 +1239,7 @@ class GfxDeviceVulkan
 
     private void createInstanceData()
     {
-        int instanceDataCount = 1;
+        int instanceDataCount = 2;
         
         VkBuffer stagingBuffer;
         VkBufferCreateInfo bufferInfo;
@@ -1271,14 +1270,17 @@ class GfxDeviceVulkan
         enforceVk( vkAllocateMemory( device, &memAlloc, null, &instanceMemory ) );
         enforceVk( vkBindBufferMemory( device, instanceBuffer, instanceMemory, 0 ) );
 
-        InstanceData instanceData;
-        instanceData.pos = [ 0, 0, 0 ];
-        instanceData.uv = [ 0, 0 ];
-        instanceData.color = [ 1, 1, 1, 1 ];
+        InstanceData[ 2 ] instanceDatas;
+        instanceDatas[ 0 ].pos = [ 0, 0, 0 ];
+        instanceDatas[ 0 ].uv = [ 0, 0 ];
+        instanceDatas[ 0 ].color = [ 1, 1, 1, 1 ];
+        instanceDatas[ 1 ].pos = [ 100, 0, 0 ];
+        instanceDatas[ 1 ].uv = [ 0, 0 ];
+        instanceDatas[ 1 ].color = [ 1, 1, 1, 1 ];
         
         void* mappedStagingMemory;
         enforceVk( vkMapMemory( device, stagingMemory, 0, bufferInfo.size, 0, &mappedStagingMemory ) );
-        memcpy( mappedStagingMemory, &instanceData, bufferInfo.size );
+        memcpy( mappedStagingMemory, &instanceDatas, bufferInfo.size );
         
         copyBuffer( stagingBuffer, instanceBuffer, cast(int)bufferInfo.size );
     }

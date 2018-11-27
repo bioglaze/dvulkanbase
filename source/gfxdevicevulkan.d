@@ -1,5 +1,6 @@
 import core.stdc.string;
 import erupted;
+import erupted.vulkan_lib_loader;
 import matrix4x4;
 import std.conv;
 import std.exception;
@@ -7,21 +8,15 @@ import std.stdio;
 version(linux)
 {
     import X11.Xlib_xcb;
+    public import xcb.xcb;
+    import erupted.platform_extensions;
+    mixin Platform_Extensions!USE_PLATFORM_XCB_KHR;
 }
 
-extern(System) VkBool32 myDebugReportCallback(
-    VkDebugReportFlagsEXT       flags,
-    VkDebugReportObjectTypeEXT  objectType,
-    uint64_t                    object,
-    size_t                      location,
-    int32_t                     messageCode,
-    const (char)*               pLayerPrefix,
-    const (char)*               pMessage,
-    void*                       pUserData) nothrow @nogc
+extern(System) VkBool32 myDebugReportCallback( VkDebugUtilsMessageSeverityFlagBitsEXT msgSeverity, VkDebugUtilsMessageTypeFlagsEXT msgType,
+                                        const VkDebugUtilsMessengerCallbackDataEXT* callbackData, void* /*userData*/ ) nothrow @nogc
 {
-    //printf( "ObjectType: %i  \n", objectType );
-    printf( pMessage );
-    printf( "\n" );
+    printf( "Vulkan validation error!" );
     return VK_FALSE;
 }
 
@@ -65,25 +60,27 @@ class GfxDeviceVulkan
     
     this( int width, int height, void* windowHandleOrWindow, void* display, uint window )
     {
-        DerelictErupted.load();
+        loadGlobalLevelFunctions();
         VkApplicationInfo appinfo;
         appinfo.pApplicationName = "VulkanBase";
         appinfo.apiVersion = VK_MAKE_VERSION( 1, 0, 2 );
 
         version(Windows)
         {
-            const(char*)[3] extensionNames = [
+            const(char*)[4] extensionNames = [
                                             "VK_KHR_surface",
                                             "VK_KHR_win32_surface",
+                                            "VK_EXT_debug_utils",
                                             "VK_EXT_debug_report"
                                             ];
         }
         version(linux)
         {
-            const(char*)[3] extensionNames = [
+            const(char*)[4] extensionNames = [
                                             "VK_KHR_surface",
                                             "VK_KHR_xcb_surface",
                                             //"VK_KHR_wayland_surface",
+                                            "VK_EXT_debug_utils",
                                             "VK_EXT_debug_report"
                                             ];
         }
@@ -116,18 +113,13 @@ class GfxDeviceVulkan
 
         if (isDebug)
         {
-            auto debugcallbackCreateInfo = VkDebugReportCallbackCreateInfoEXT(
-              VkStructureType.VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT,
-              null,
-              VkDebugReportFlagBitsEXT.VK_DEBUG_REPORT_ERROR_BIT_EXT |
-              VkDebugReportFlagBitsEXT.VK_DEBUG_REPORT_WARNING_BIT_EXT |
-              VkDebugReportFlagBitsEXT.VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT,
-              &myDebugReportCallback,
-              null
-            );
-        
-            VkDebugReportCallbackEXT callback;
-            enforceVk( vkCreateDebugReportCallbackEXT( instance, &debugcallbackCreateInfo, null, &callback ) );
+            VkDebugUtilsMessengerCreateInfoEXT dbg_messenger_create_info;
+            dbg_messenger_create_info.sType = VkStructureType.VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+            dbg_messenger_create_info.messageSeverity = VkDebugUtilsMessageSeverityFlagBitsEXT.VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VkDebugUtilsMessageSeverityFlagBitsEXT.VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+            dbg_messenger_create_info.messageType = VkDebugUtilsMessageTypeFlagBitsEXT.VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VkDebugUtilsMessageTypeFlagBitsEXT.VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VkDebugUtilsMessageTypeFlagBitsEXT.VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+            dbg_messenger_create_info.pfnUserCallback = &myDebugReportCallback;
+            VkDebugUtilsMessengerEXT dbgMessenger;
+            enforceVk( vkCreateDebugUtilsMessengerEXT( instance, &dbg_messenger_create_info, null, &dbgMessenger ) );
         }
         
         version(Windows)

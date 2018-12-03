@@ -13,7 +13,7 @@ version(linux)
     mixin Platform_Extensions!USE_PLATFORM_XCB_KHR;
 }
 
-/*const char* getObjectType( VkObjectType type )
+/*char* getObjectType( VkObjectType type ) @nogc
 {
     switch( type )
     {

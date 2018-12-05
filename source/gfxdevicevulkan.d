@@ -13,7 +13,7 @@ version(linux)
     mixin Platform_Extensions!USE_PLATFORM_XCB_KHR;
 }
 
-/*char* getObjectType( VkObjectType type ) @nogc
+const(char*) getObjectType( VkObjectType type ) nothrow @nogc
 {
     switch( type )
     {
@@ -94,7 +94,7 @@ version(linux)
     default:
         return "unhandled type";
     }
-    }*/
+}
 
 extern(System) VkBool32 myDebugReportCallback( VkDebugUtilsMessageSeverityFlagBitsEXT msgSeverity, VkDebugUtilsMessageTypeFlagsEXT msgType,
                                         const VkDebugUtilsMessengerCallbackDataEXT* callbackData, void* /*userData*/ ) nothrow @nogc
@@ -132,8 +132,8 @@ extern(System) VkBool32 myDebugReportCallback( VkDebugUtilsMessageSeverityFlagBi
         for (int i = 0; i < callbackData.objectCount; ++i)
         {
             const char* name = callbackData.pObjects[ i ].pObjectName ? callbackData.pObjects[ i ].pObjectName : "unnamed";
-            //printf( "Object %u: name: %s, type: %s\n", i, name, getObjectType( callbackData.pObjects[ i ].objectType ) );
-            printf( "Object %u: name: %s, type: TODO\n", i, name );
+            printf( "Object %u: name: %s, type: %s\n", i, name, getObjectType( callbackData.pObjects[ i ].objectType ) );
+            //printf( "Object %u: name: %s, type: TODO\n", i, name );
         }
     }
 

@@ -311,7 +311,7 @@ class GfxDeviceVulkan
         layoutBindingUBO.binding = 0;
         layoutBindingUBO.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         layoutBindingUBO.descriptorCount = 1;
-        layoutBindingUBO.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+        layoutBindingUBO.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_COMPUTE_BIT;
         layoutBindingUBO.pImmutableSamplers = null;
 
         // Binding 1 : Image (Fragment shader)
@@ -721,7 +721,6 @@ class GfxDeviceVulkan
         }
 
         VkPhysicalDeviceFeatures enabledFeatures;
-        enabledFeatures.tessellationShader = VK_TRUE;
         enabledFeatures.shaderTessellationAndGeometryPointSize = VK_TRUE;
         enabledFeatures.shaderClipDistance = VK_TRUE;
         enabledFeatures.shaderCullDistance = VK_TRUE;
@@ -889,7 +888,7 @@ class GfxDeviceVulkan
         samplerInfo.mipLodBias = 0;
         samplerInfo.compareOp = VK_COMPARE_OP_NEVER;
         samplerInfo.minLod = 0;
-        samplerInfo.maxLod = 1;
+        samplerInfo.maxLod = VK_LOD_CLAMP_NONE;
         samplerInfo.maxAnisotropy = 1;
         samplerInfo.anisotropyEnable = VK_FALSE;
         samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;

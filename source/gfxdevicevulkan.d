@@ -179,7 +179,7 @@ class GfxDeviceVulkan
         auto layerProps = new VkLayerProperties[]( layerCount );
         vkEnumerateInstanceLayerProperties( &layerCount, layerProps.ptr );
 
-        const(char*)[1] validationLayers = ["VK_LAYER_LUNARG_standard_validation"];
+        const(char*)[1] validationLayers = ["VK_LAYER_KHRONOS_validation"];
         
         VkInstanceCreateInfo createinfo;
         createinfo.sType = VkStructureType.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;

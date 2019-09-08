@@ -13,6 +13,13 @@ version(linux)
     mixin Platform_Extensions!USE_PLATFORM_XCB_KHR;
 }
 
+version(Windows)
+{
+    import core.sys.windows.windows;
+    import erupted.platform_extensions;
+    mixin Platform_Extensions!USE_PLATFORM_WIN32_KHR;
+}
+
 const(char*) getObjectType( VkObjectType type ) nothrow @nogc
 {
     switch( type )

@@ -718,15 +718,6 @@ class GfxDeviceVulkan
         VkExtensionProperties[] availableDeviceExtensions = new VkExtensionProperties[ deviceExtensionCount ];
         vkEnumerateDeviceExtensionProperties( physicalDevice, null, &deviceExtensionCount, availableDeviceExtensions.ptr );
 
-        for (int i = 0; i < availableDeviceExtensions.length; ++i)
-        {
-            if (availableDeviceExtensions[ i ].extensionName == VK_EXT_DEBUG_MARKER_EXTENSION_NAME)
-            {
-                writeln("Found debug marker extension");
-                deviceExtensions ~= VK_EXT_DEBUG_MARKER_EXTENSION_NAME;
-            }
-        }
-
         VkPhysicalDeviceFeatures enabledFeatures;
         enabledFeatures.shaderTessellationAndGeometryPointSize = VK_TRUE;
         enabledFeatures.shaderClipDistance = VK_TRUE;

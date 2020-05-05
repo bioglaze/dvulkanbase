@@ -10,28 +10,28 @@ version(linux)
     import X11.Xlib_xcb;
     public import xcb.xcb;
     import erupted.platform_extensions;
-    mixin Platform_Extensions!USE_PLATFORM_XCB_KHR;
+    mixin Platform_Extensions!VK_USE_PLATFORM_XCB_KHR;
 }
 
 version(Windows)
 {
-    import core.sys.windows.windows;
+    public import core.sys.windows.windows;
     import erupted.platform_extensions;
-    mixin Platform_Extensions!USE_PLATFORM_WIN32_KHR;
+    mixin Platform_Extensions!VK_USE_PLATFORM_WIN32_KHR;
 }
+
+DispatchDevice dd;
 
 const(char*) getObjectType( VkObjectType type ) nothrow @nogc
 {
     switch( type )
     {
     case VK_OBJECT_TYPE_QUERY_POOL: return "VK_OBJECT_TYPE_QUERY_POOL";
-    case VK_OBJECT_TYPE_OBJECT_TABLE_NVX: return "VK_OBJECT_TYPE_OBJECT_TABLE_NVX";
     case VK_OBJECT_TYPE_SAMPLER_YCBCR_CONVERSION: return "VK_OBJECT_TYPE_SAMPLER_YCBCR_CONVERSION";
     case VK_OBJECT_TYPE_SEMAPHORE: return "VK_OBJECT_TYPE_SEMAPHORE";
     case VK_OBJECT_TYPE_SHADER_MODULE: return "VK_OBJECT_TYPE_SHADER_MODULE";
     case VK_OBJECT_TYPE_SWAPCHAIN_KHR: return "VK_OBJECT_TYPE_SWAPCHAIN_KHR";
     case VK_OBJECT_TYPE_SAMPLER: return "VK_OBJECT_TYPE_SAMPLER";
-    case VK_OBJECT_TYPE_INDIRECT_COMMANDS_LAYOUT_NVX: return "VK_OBJECT_TYPE_INDIRECT_COMMANDS_LAYOUT_NVX";
     case VK_OBJECT_TYPE_DEBUG_REPORT_CALLBACK_EXT: return "VK_OBJECT_TYPE_DEBUG_REPORT_CALLBACK_EXT";
     case VK_OBJECT_TYPE_IMAGE: return "VK_OBJECT_TYPE_IMAGE";
     case VK_OBJECT_TYPE_UNKNOWN: return "VK_OBJECT_TYPE_UNKNOWN";
@@ -734,6 +734,7 @@ class GfxDeviceVulkan
         deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.ptr;
 
         enforceVk( vkCreateDevice( physicalDevice, &deviceCreateInfo, null, &device ) );
+        dd.loadDeviceLevelFunctions( device );
 
         vkGetPhysicalDeviceMemoryProperties( physicalDevice, &deviceMemoryProperties );
         loadDeviceLevelFunctions( device );

@@ -1,5 +1,5 @@
 import core.simd;
-import derelict.sdl2.sdl;
+import bindbc.sdl;
 import gfxdevicevulkan;
 import matrix4x4;
 import std.stdio;
@@ -11,7 +11,19 @@ void main()
     immutable int width = 800;
     immutable int height = 600;
 
-    DerelictSDL2.load();
+    SDLSupport ret = loadSDL();
+
+    if (ret != sdlSupport)
+    {
+        if (ret == SDLSupport.noLibrary)
+        {
+            throw new Error( "Could not load SDL library!" );
+        }
+        else if (ret == SDLSupport.badLibrary)
+        {
+            throw new Error( "Bad SDL library!" );
+        }
+    }
 
     auto sdlWindow = SDL_CreateWindow( "vulkan basecode", 100, 0, width, height, SDL_WINDOW_SHOWN );
     SDL_SysWMinfo info;

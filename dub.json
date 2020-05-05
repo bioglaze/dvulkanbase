@@ -11,20 +11,20 @@
             "platforms": ["linux"],
             "versions": ["VK_USE_PLATFORM_XCB_KHR"],
             "libs": [ "X11", "Xi", "Xrandr", "pthread", "Xxf86vm","GL", "GLU", "Xinerama", "Xcursor" ],
-            "dependencies": {
-                "derelict-sdl2": ">=2.0.0",
-                "erupted": "~>2.0.16",
-	            "xlib-d": "~>0.1.1"
-            }
+          "dependencies": {
+            "bindbc-sdl": "~>0.1.0",
+            "erupted_v2": ">=1.1.71",
+            "xlib-d": "~>0.1.1"
+          }
         },
         {
             "name": "windows",
             "platforms": ["windows"],
             "versions": ["VK_USE_PLATFORM_WIN32_KHR"],
-            "dependencies": {
-                "derelict-sdl2": ">=2.0.0",
-                "erupted": "~>2.0.16"
-            }
+          "dependencies": {
+            "bindbc-sdl": "~>0.1.0",
+            "erupted_v2": ">=1.1.71"
+          }
         }
     ]
 }

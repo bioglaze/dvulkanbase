@@ -14,7 +14,7 @@ void multiply( Matrix4x4 ma, Matrix4x4 mb, out Matrix4x4 result )
         a_line.ptr[ 2 ] = mb.m[ 2 ];
         a_line.ptr[ 3 ] = mb.m[ 3 ];
         b_line = ma.m[ i ];
-        r_line = __simd( XMM.MULPS, a_line, b_line );
+        r_line = cast(float4)( __simd( XMM.MULPS, a_line, b_line ) );
         
         for (int j = 1; j < 4; j++)
         {
@@ -24,7 +24,7 @@ void multiply( Matrix4x4 ma, Matrix4x4 mb, out Matrix4x4 result )
             a_line.ptr[ 3 ] = mb.m[ j * 4 + 3 ];
             
             b_line = ma.m[ i + j ];
-            r_line = __simd( XMM.ADDPS, __simd( XMM.MULPS, a_line, b_line ), r_line );
+            r_line = cast( float4 )( __simd( XMM.ADDPS, __simd( XMM.MULPS, a_line, b_line ), r_line ) );
         }
 
         result.m[ i + 0 ] = r_line.ptr[ 0 ];

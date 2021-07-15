@@ -10,17 +10,17 @@ version(linux)
     import X11.Xlib_xcb;
     public import xcb.xcb;
     import erupted.platform_extensions;
-    mixin Platform_Extensions!VK_USE_PLATFORM_XCB_KHR;
+    mixin Platform_Extensions!USE_PLATFORM_XCB_KHR;
 }
 
-version(Windows)
+/*version(Windows)
 {
     public import core.sys.windows.windows;
     import erupted.platform_extensions;
-    mixin Platform_Extensions!VK_USE_PLATFORM_WIN32_KHR;
-}
+    mixin Platform_Extensions!USE_PLATFORM_WIN32_KHR;
+    }*/
 
-DispatchDevice dd;
+//DispatchDevice dd;
 
 const(char*) getObjectType( VkObjectType type ) nothrow @nogc
 {
@@ -154,7 +154,7 @@ class GfxDeviceVulkan
         loadGlobalLevelFunctions();
         VkApplicationInfo appinfo;
         appinfo.pApplicationName = "VulkanBase";
-        appinfo.apiVersion = VK_MAKE_VERSION( 1, 0, 2 );
+        appinfo.apiVersion = VK_MAKE_API_VERSION( 0, 1, 0, 2 );
 
         version(Windows)
         {
@@ -734,7 +734,7 @@ class GfxDeviceVulkan
         deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.ptr;
 
         enforceVk( vkCreateDevice( physicalDevice, &deviceCreateInfo, null, &device ) );
-        dd.loadDeviceLevelFunctions( device );
+        //dd.loadDeviceLevelFunctions( device );
 
         vkGetPhysicalDeviceMemoryProperties( physicalDevice, &deviceMemoryProperties );
         loadDeviceLevelFunctions( device );

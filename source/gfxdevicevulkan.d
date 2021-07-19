@@ -13,12 +13,12 @@ version(linux)
     mixin Platform_Extensions!USE_PLATFORM_XCB_KHR;
 }
 
-/*version(Windows)
+version(Windows)
 {
     public import core.sys.windows.windows;
     import erupted.platform_extensions;
     mixin Platform_Extensions!USE_PLATFORM_WIN32_KHR;
-    }*/
+}
 
 //DispatchDevice dd;
 
@@ -148,7 +148,7 @@ struct InstanceData
 class GfxDeviceVulkan
 {
     private bool isDebug = true;
-    
+
     this( int width, int height, void* windowHandleOrWindow, void* display, uint window )
     {
         loadGlobalLevelFunctions();
@@ -173,13 +173,13 @@ class GfxDeviceVulkan
                                             "VK_EXT_debug_utils",
                                             ];
         }
-        
+
         uint extensionCount = 0;
         vkEnumerateInstanceExtensionProperties( null, &extensionCount, null );
 
         auto extensionProps = new VkExtensionProperties[]( extensionCount );
         vkEnumerateInstanceExtensionProperties( null, &extensionCount, extensionProps.ptr );
-        
+
         uint layerCount = 0;
         vkEnumerateInstanceLayerProperties( &layerCount, null );
 
@@ -187,7 +187,7 @@ class GfxDeviceVulkan
         vkEnumerateInstanceLayerProperties( &layerCount, layerProps.ptr );
 
         const(char*)[1] validationLayers = ["VK_LAYER_KHRONOS_validation"];
-        
+
         VkInstanceCreateInfo createinfo;
         createinfo.sType = VkStructureType.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
         createinfo.pApplicationInfo = &appinfo;
@@ -210,7 +210,7 @@ class GfxDeviceVulkan
             VkDebugUtilsMessengerEXT dbgMessenger;
             enforceVk( vkCreateDebugUtilsMessengerEXT( instance, &dbg_messenger_create_info, null, &dbgMessenger ) );
         }
-        
+
         version(Windows)
         {
             VkWin32SurfaceCreateInfoKHR surfaceCreateInfo;
@@ -250,7 +250,7 @@ class GfxDeviceVulkan
         createUniformBuffer( quad1Ubo );
         createIndirectCommands();
         createInstanceData();
-        
+
         drawCmdBuffers = new VkCommandBuffer[ swapChainBuffers.length ];
         frameBuffers = new VkFramebuffer[ swapChainBuffers.length ];
 
@@ -261,9 +261,9 @@ class GfxDeviceVulkan
         commandBufferAllocateInfo.commandBufferCount = cast(uint)drawCmdBuffers.length;
 
         enforceVk( vkAllocateCommandBuffers( device, &commandBufferAllocateInfo, drawCmdBuffers.ptr ) );
-        
+
         commandBufferAllocateInfo.commandBufferCount = 1;
-        
+
         enforceVk( vkAllocateCommandBuffers( device, &commandBufferAllocateInfo, &postPresentCmdBuffer ) );
         enforceVk( vkAllocateCommandBuffers( device, &commandBufferAllocateInfo, &prePresentCmdBuffer ) );
 
@@ -307,7 +307,7 @@ class GfxDeviceVulkan
         quadIndices[ 1 ] = Face( 2, 3, 0 );
 
         vertexBuffer.generate( quadVertices, quadIndices, this );
-    
+
         shader.load( "assets/shader_vert_hlsl.spv", "assets/shader_frag_hlsl.spv", device );
     }
 
@@ -573,7 +573,7 @@ class GfxDeviceVulkan
         vkFreeCommandBuffers( device, cmdPool, 1, &setupCmdBuffer );
         setupCmdBuffer = VK_NULL_HANDLE;
     }
-  
+
     void beginFrame( int width, int height )
     {
         enforceVk( vkAcquireNextImageKHR( device, swapChain, ulong.max, presentCompleteSemaphore, null, &currentBuffer ) );
@@ -723,7 +723,7 @@ class GfxDeviceVulkan
         enabledFeatures.shaderClipDistance = VK_TRUE;
         enabledFeatures.shaderCullDistance = VK_TRUE;
         enabledFeatures.multiDrawIndirect = VK_TRUE;
-        
+
         VkDeviceCreateInfo deviceCreateInfo;
         deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
         deviceCreateInfo.pNext = null;
@@ -764,7 +764,7 @@ class GfxDeviceVulkan
 
         VkSurfaceFormatKHR[]  surfFormats = new VkSurfaceFormatKHR[ formatCount ];
         enforceVk( vkGetPhysicalDeviceSurfaceFormatsKHR( physicalDevice, surface, &formatCount, surfFormats.ptr ) );
-        
+
         if (formatCount == 1 && surfFormats[ 0 ].format == VK_FORMAT_UNDEFINED)
         {
             colorFormat = VK_FORMAT_B8G8R8A8_UNORM;
@@ -777,7 +777,7 @@ class GfxDeviceVulkan
         VkColorSpaceKHR colorSpace = surfFormats[ 0 ].colorSpace;
 
         // Create swap chain
-        
+
         VkSurfaceCapabilitiesKHR surfCaps;
         enforceVk( vkGetPhysicalDeviceSurfaceCapabilitiesKHR( physicalDevice, surface, &surfCaps ) );
 
@@ -789,7 +789,7 @@ class GfxDeviceVulkan
         enforceVk( vkGetPhysicalDeviceSurfacePresentModesKHR( physicalDevice, surface, &presentModeCount, presentModes.ptr ) );
 
         VkExtent2D swapchainExtent;
-        
+
         if (surfCaps.currentExtent.width == cast(uint)-1)
         {
             swapchainExtent.width = width;
@@ -841,11 +841,11 @@ class GfxDeviceVulkan
 
         swapChainImages = new VkImage[ imageCount ];
         swapChainBuffers = new SwapChainBuffer[ imageCount ];
-        
+
         enforceVk( vkGetSwapchainImagesKHR( device, swapChain, &imageCount, swapChainImages.ptr ) );
 
         allocateSetupCommandBuffer();
-        
+
         for (uint32_t i = 0; i < imageCount; ++i)
         {
             VkImageViewCreateInfo colorAttachmentView;
@@ -981,7 +981,7 @@ class GfxDeviceVulkan
         {
             destStageFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
         }
-        
+
         if (imageMemoryBarrier.dstAccessMask == VK_ACCESS_SHADER_READ_BIT)
         {
             destStageFlags = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
@@ -1102,7 +1102,7 @@ class GfxDeviceVulkan
                     return i;
                 }
             }
-            
+
             typeBits >>= 1;
         }
 
@@ -1188,7 +1188,7 @@ class GfxDeviceVulkan
         result += cast(uint64_t)cullMode;
         return result;
     }
-  
+
     public void updateDescriptorSet( VkSampler sampler, VkImageView view1, VkImageView view2, VkImageView view3 )
     {
         descriptorSetIndex = currentFrame % 2;
@@ -1210,7 +1210,7 @@ class GfxDeviceVulkan
         VkDescriptorImageInfo[ 3 ] samplerDescs = [ samplerDesc, samplerDesc, samplerDesc ];
         samplerDescs[ 1 ].imageView = view2;
         samplerDescs[ 2 ].imageView = view3;
-        
+
         VkWriteDescriptorSet imageSet;
         imageSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         imageSet.dstSet = descriptorSets[ descriptorSetIndex ];
@@ -1253,20 +1253,20 @@ class GfxDeviceVulkan
         // Instance data buffer
         VkDeviceSize[ 1 ] instanceOffsets = [ 0 ];
         vkCmdBindVertexBuffers( drawCmdBuffers[ currentBuffer ], 3, 1, &instanceBuffer, instanceOffsets.ptr );
-        
+
         vkCmdBindIndexBuffer( drawCmdBuffers[ currentBuffer ], vb.indexBuffer, 0, VK_INDEX_TYPE_UINT16 );
 
         int indirectDrawCount = 1;
         vkCmdDrawIndexedIndirect( drawCmdBuffers[ currentBuffer ], indirectBuffer, 0, indirectDrawCount, VkDrawIndexedIndirectCommand.sizeof );
     }
-    
+
     private void createIndirectCommands()
     {
         indirectCommands = new VkDrawIndexedIndirectCommand[ 1 ];
 
         int instanceCount = 2;
         int indexCount = 6;
-        
+
         indirectCommands[ 0 ].instanceCount = instanceCount;
         indirectCommands[ 0 ].firstInstance = 0 * instanceCount;
         indirectCommands[ 0 ].firstIndex = 0;
@@ -1304,14 +1304,14 @@ class GfxDeviceVulkan
         void* mappedStagingMemory;
         enforceVk( vkMapMemory( device, stagingMemory, 0, bufferInfo.size, 0, &mappedStagingMemory ) );
         memcpy( mappedStagingMemory, indirectCommands.ptr, bufferInfo.size );
-        
+
         copyBuffer( stagingBuffer, indirectBuffer, cast(int)bufferInfo.size );
     }
 
     private void createInstanceData()
     {
         int instanceDataCount = 2;
-        
+
         VkBuffer stagingBuffer;
         VkBufferCreateInfo bufferInfo;
         bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -1348,21 +1348,21 @@ class GfxDeviceVulkan
         instanceDatas[ 1 ].pos = [ 100, 0, 0 ];
         instanceDatas[ 1 ].uv = [ 0, 0 ];
         instanceDatas[ 1 ].color = [ 1, 1, 1, 1 ];
-        
+
         void* mappedStagingMemory;
         enforceVk( vkMapMemory( device, stagingMemory, 0, bufferInfo.size, 0, &mappedStagingMemory ) );
         memcpy( mappedStagingMemory, &instanceDatas, bufferInfo.size );
-        
+
         copyBuffer( stagingBuffer, instanceBuffer, cast(int)bufferInfo.size );
     }
-    
+
     private void createPso( VertexBuffer vb, Shader shader, BlendMode blendMode, DepthFunc depthFunc, CullMode cullMode, uint64_t psoHash )
     {
         VkPipelineInputAssemblyStateCreateInfo inputAssemblyState;
         inputAssemblyState.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
         inputAssemblyState.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         inputAssemblyState.primitiveRestartEnable = VK_FALSE;
-        
+
         VkPipelineRasterizationStateCreateInfo rasterizationState;
         rasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
         rasterizationState.polygonMode = VK_POLYGON_MODE_FILL;
@@ -1411,7 +1411,7 @@ class GfxDeviceVulkan
         multisampleState.pSampleMask = null;
         multisampleState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
         multisampleState.minSampleShading = 0.0f;
-        
+
         VkPipelineShaderStageCreateInfo[ 2 ] shaderStages;
 
         shaderStages[ 0 ] = shader.vertexInfo;
@@ -1442,7 +1442,7 @@ class GfxDeviceVulkan
         enforceVk( vkCreateGraphicsPipelines( device, pipelineCache, 1, &pipelineCreateInfo, null, &pso ) );
         psoCache[ psoHash ] = pso;
     }
-  
+
     struct SwapChainBuffer
     {
         VkImage image;
@@ -1496,10 +1496,10 @@ class GfxDeviceVulkan
                 {
                     assert( false, "Could not open vertex shader file" );
                 }
-                
+
                 char[] vertexCode = new char[ file.size ];
                 auto vertexSlice = file.rawRead( vertexCode );
-                
+
                 VkShaderModuleCreateInfo moduleCreateInfo;
                 moduleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
                 moduleCreateInfo.pNext = null;
@@ -1522,7 +1522,7 @@ class GfxDeviceVulkan
             // Fragment shader
             {
                 auto file = File( fragmentPath, "r" );
-                
+
                 if (!file.isOpen())
                 {
                     assert( false, "Could not open fragment shader file" );
@@ -1550,7 +1550,7 @@ class GfxDeviceVulkan
                 fragmentInfo.pSpecializationInfo = null;
             }
         }
-      
+
         VkPipelineShaderStageCreateInfo vertexInfo;
         VkPipelineShaderStageCreateInfo fragmentInfo;
     }
@@ -1593,7 +1593,7 @@ class GfxDeviceVulkan
     VkDeviceMemory indirectMemory;
     VkBuffer instanceBuffer;
     VkDeviceMemory instanceMemory;
-    
+
     int queueNodeIndex;
     uint currentBuffer;
     uint currentFrame;
@@ -1608,7 +1608,7 @@ class GfxDeviceVulkan
     VkPipeline[ uint64_t ] psoCache;
     VkPipelineCache pipelineCache;
     int descriptorSetIndex;
-  
+
     struct VertexBuffer
     {
         void generate( VertexPTC[] vertices, Face[] indices, GfxDeviceVulkan gfxDevice )
@@ -1631,7 +1631,7 @@ class GfxDeviceVulkan
                 colors[ vertexIndex * 4 + 2 ] = vertices[ vertexIndex ].b;
                 colors[ vertexIndex * 4 + 3 ] = vertices[ vertexIndex ].a;
             }
-            
+
             struct StagingBuffer
             {
                 VkDeviceMemory memory;
@@ -1649,11 +1649,11 @@ class GfxDeviceVulkan
             StagingBuffers stagingBuffers;
 
             void* bufferData = null;
-            
+
             // Position buffer
             {
                 int positionBufferSize = cast(int)(positions.length * float.sizeof);
-              
+
                 gfxDevice.createBuffer( stagingBuffers.positions.buffer, positionBufferSize, stagingBuffers.positions.memory, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, "staging position buffer" );
 
                 enforceVk( vkMapMemory( gfxDevice.device, stagingBuffers.positions.memory, 0, positionBufferSize, 0, &bufferData ) );
@@ -1672,7 +1672,7 @@ class GfxDeviceVulkan
             // UV buffer
             {
                 int uvBufferSize = cast(int)(uvs.length * float.sizeof);
-              
+
                 gfxDevice.createBuffer( stagingBuffers.uvs.buffer, uvBufferSize, stagingBuffers.uvs.memory, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, "staging uv buffer" );
 
                 enforceVk( vkMapMemory( gfxDevice.device, stagingBuffers.uvs.memory, 0, uvBufferSize, 0, &bufferData ) );
@@ -1691,7 +1691,7 @@ class GfxDeviceVulkan
             // Color buffer
             {
                 int colorBufferSize = cast(int)(colors.length * float.sizeof);
-              
+
                 gfxDevice.createBuffer( stagingBuffers.colors.buffer, colorBufferSize, stagingBuffers.colors.memory, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, "staging color buffer" );
 
                 enforceVk( vkMapMemory( gfxDevice.device, stagingBuffers.colors.memory, 0, colorBufferSize, 0, &bufferData ) );
@@ -1706,7 +1706,7 @@ class GfxDeviceVulkan
                 vkDestroyBuffer( gfxDevice.device, stagingBuffers.colors.buffer, null );
                 vkFreeMemory( gfxDevice.device, stagingBuffers.colors.memory, null );
             }
-            
+
             // Index buffer
             int indexBufferSize = cast(int)(indices.length * Face.sizeof);
 
@@ -1726,7 +1726,7 @@ class GfxDeviceVulkan
             const int POSITION_INDEX = 0;
             const int TEXCOORD_INDEX = 1;
             const int COLOR_INDEX = 2;
-            
+
             bindingDescriptions = new VkVertexInputBindingDescription[ 4 ];
             bindingDescriptions[ 0 ].binding = 0;
             bindingDescriptions[ 0 ].stride = 3 * float.sizeof;

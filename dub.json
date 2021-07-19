@@ -24,7 +24,7 @@
             "versions": ["VK_USE_PLATFORM_WIN32_KHR"],
           "dependencies": {
             "bindbc-sdl": "~>0.19.0",
-            "erupted_v2": ">=1.1.71"
+            "erupted": ">=2.1.34"
           }
         }
     ]
